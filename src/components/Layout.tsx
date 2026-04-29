@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Sidebar from './Sidebar';
+import Sidebar, { type View } from './Sidebar';
 import TopBar from './TopBar';
 import Dashboard from './Dashboard';
 import DirectorDashboard from './DirectorDashboard';
@@ -8,9 +8,12 @@ import IncomingTasks from './IncomingTasks';
 import OutgoingTasks from './OutgoingTasks';
 import Archive from './Archive';
 import CreateTaskModal from './CreateTaskModal';
+import PendingDirectorReview from './PendingDirectorReview';
+import DirectorReviewQueue from './DirectorReviewQueue';
+import WeekPlanner from './WeekPlanner';
+import WaitingTasks from './WaitingTasks';
+import SettingsView from './SettingsView';
 import { useApp } from '../context/AppContext';
-
-type View = 'dashboard' | 'my-tasks' | 'incoming' | 'outgoing' | 'archive' | 'director';
 
 export default function Layout() {
   const { state } = useApp();
@@ -24,11 +27,17 @@ export default function Layout() {
   function renderView() {
     switch (view) {
       case 'dashboard': return <Dashboard searchQuery={searchQuery} />;
+      case 'calendar-planner': return currentUser?.role === 'director' ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
       case 'my-tasks': return <MyTasks searchQuery={searchQuery} />;
       case 'incoming': return <IncomingTasks searchQuery={searchQuery} />;
       case 'outgoing': return <OutgoingTasks searchQuery={searchQuery} />;
+      case 'waiting': return <WaitingTasks searchQuery={searchQuery} />;
+      case 'pending-director': return <PendingDirectorReview searchQuery={searchQuery} />;
+      case 'director-review': return currentUser?.role === 'director' ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'team': return currentUser?.role === 'director' ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
       case 'archive': return <Archive searchQuery={searchQuery} />;
-      case 'director': return currentUser?.role === 'director' ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'settings': return <SettingsView />;
       default: return <Dashboard searchQuery={searchQuery} />;
     }
   }

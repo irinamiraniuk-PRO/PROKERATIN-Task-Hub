@@ -7,6 +7,7 @@ export type TaskStatus =
   | 'waiting_response'
   | 'transferred'
   | 'pending_director_review'
+  | 'returned_for_revision'
   | 'completed'
   | 'closed'
   | 'postponed'
@@ -21,6 +22,7 @@ export interface User {
   password: string;
   role: UserRole;
   avatar?: string;
+  color?: string;
 }
 
 export interface Comment {
@@ -42,6 +44,12 @@ export interface HistoryEntry {
   meta?: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -50,12 +58,15 @@ export interface Task {
   assignedTo: string;
   createdAt: string;
   deadline: string;
+  plannedDate?: string;
   priority: TaskPriority;
   status: TaskStatus;
   comments: Comment[];
   history: HistoryEntry[];
+  checklist?: ChecklistItem[];
   transferredTo?: string;
   transferredFrom?: string;
+  sentToDirectorAt?: string;
 }
 
 export interface AppState {

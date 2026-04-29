@@ -1,4 +1,3 @@
-
 import { useApp } from '../context/AppContext';
 import TaskListView from './TaskListView';
 
@@ -7,9 +6,12 @@ export default function OutgoingTasks({ searchQuery }: { searchQuery: string }) 
   const { tasks, currentUser } = state;
   if (!currentUser) return null;
 
-  const outgoing = tasks.filter(t =>
-    t.transferredFrom === currentUser.id && ['transferred', 'waiting_response'].includes(t.status)
-  );
+  // Outgoing: tasks I created and assigned to others, or tasks I transferred
+  const outgoing = tasks.filter(t => {
+    if (t.transferredFrom === currentUser.id) return true;
+    if (t.createdBy === currentUser.id && t.assignedTo !== currentUser.id && !['completed', 'closed'].includes(t.status)) return true;
+    return false;
+  });
 
   return (
     <TaskListView

@@ -5,7 +5,16 @@ import Layout from './components/Layout';
 
 function AppInner() {
   const { state } = useApp();
-  return state.currentUser ? <Layout /> : <Login />;
+
+  if (state.currentUser) {
+    return (
+      <div className="anim-workspace" style={{ height: '100%' }}>
+        <Layout />
+      </div>
+    );
+  }
+
+  return <Login />;
 }
 
 function App() {

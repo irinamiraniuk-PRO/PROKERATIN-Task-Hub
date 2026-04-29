@@ -39,6 +39,8 @@ export default function DirectorDashboard({ searchQuery }: { searchQuery: string
       new: userTasks.filter(t => t.status === 'new').length,
       inProgress: userTasks.filter(t => t.status === 'in_progress').length,
       overdue: userTasks.filter(t => t.status === 'overdue').length,
+      pendingReview: userTasks.filter(t => t.status === 'pending_director_review').length,
+      returned: userTasks.filter(t => t.status === 'returned_for_revision').length,
       completed,
       efficiency: eff,
     };
@@ -76,7 +78,7 @@ export default function DirectorDashboard({ searchQuery }: { searchQuery: string
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#FAFAF8' }}>
-                {['Сотрудник', 'Всего', 'Новые', 'В работе', 'Просрочено', 'Выполнено', 'Эффективность'].map(h => (
+                {['Сотрудник', 'Всего', 'Новые', 'В работе', 'На проверке', 'Просрочено', 'Выполнено', 'Эффективность'].map(h => (
                   <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#666', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -94,7 +96,13 @@ export default function DirectorDashboard({ searchQuery }: { searchQuery: string
                       <span style={{ background: '#E8F0FE', color: '#3B5BDB', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontWeight: 600 }}>{s.new}</span>
                     </td>
                     <td style={{ padding: '12px 16px' }}>
-                      <span style={{ background: '#FEF9C3', color: '#854D0E', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontWeight: 600 }}>{s.inProgress}</span>
+                      <span style={{ background: '#DBEAFE', color: '#1D4ED8', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontWeight: 600 }}>{s.inProgress}</span>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {s.pendingReview > 0
+                        ? <span style={{ background: '#FEF3C7', color: '#92400E', borderRadius: 5, padding: '2px 7px', fontSize: 12, fontWeight: 600 }}>{s.pendingReview}</span>
+                        : <span style={{ color: '#aaa' }}>—</span>
+                      }
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       {s.overdue > 0
