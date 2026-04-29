@@ -10,8 +10,12 @@ function getMinskDateStr(date: Date): string {
   return date.toLocaleDateString('ru-RU', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
+function toMinskLocalDate(date: Date): Date {
+  return new Date(date.toLocaleDateString('en-CA', { timeZone: TZ }));
+}
+
 function getMondayOfWeek(date: Date): Date {
-  const d = new Date(date.toLocaleDateString('en-CA', { timeZone: TZ }));
+  const d = toMinskLocalDate(date);
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
@@ -24,8 +28,7 @@ function isSameDay(isoA: string, dateB: Date): boolean {
 }
 
 function isInCurrentWeek(iso: string, monday: Date): boolean {
-  const d = new Date(iso);
-  const dStr = new Date(d.toLocaleDateString('en-CA', { timeZone: TZ }));
+  const dStr = toMinskLocalDate(new Date(iso));
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   return dStr >= monday && dStr <= sunday;
@@ -48,7 +51,7 @@ function StatCard({ label, value, sub, color, emoji }: { label: string; value: n
 
 function MiniCalendar({ today, onDayClick }: { today: Date; onDayClick?: (d: Date) => void }) {
   const [viewDate, setViewDate] = useState(() => {
-    const d = new Date(today.toLocaleDateString('en-CA', { timeZone: TZ }));
+    const d = toMinskLocalDate(today);
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
@@ -112,7 +115,7 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
   if (!currentUser) return null;
 
   const now = new Date();
-  const todayMidnight = new Date(now.toLocaleDateString('en-CA', { timeZone: TZ }));
+  const todayMidnight = toMinskLocalDate(now);
   const monday = getMondayOfWeek(now);
 
   const myTasks = currentUser.role === 'director'

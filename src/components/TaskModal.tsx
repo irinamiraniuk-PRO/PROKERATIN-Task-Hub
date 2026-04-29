@@ -38,6 +38,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const isDirector = currentUser.role === 'director';
   const isAssignee = task.assignedTo === currentUser.id;
   const isTransferredToMe = task.transferredTo === currentUser.id && task.status === 'transferred';
+  const returnNoteValid = returnNote.trim().length > 0;
   const canAct = isAssignee || isDirector || isTransferredToMe;
 
   const otherUsers = users.filter(u => u.id !== currentUser.id);
@@ -56,7 +57,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   }
 
   function handleDirectorReturn() {
-    if (!returnNote.trim()) return;
+    if (!returnNoteValid) return;
     directorAction(task.id, 'return', returnNote);
     setShowReturn(false);
     onClose();
@@ -292,11 +293,11 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, minHeight: 80, resize: 'vertical', boxSizing: 'border-box' }}
                   />
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button onClick={handleDirectorReturn} disabled={!returnNote.trim()} style={{
+                    <button onClick={handleDirectorReturn} disabled={!returnNoteValid} style={{
                       padding: '8px 16px', borderRadius: 8, border: 'none',
-                      cursor: returnNote.trim() ? 'pointer' : 'not-allowed',
+                      cursor: returnNoteValid ? 'pointer' : 'not-allowed',
                       background: '#EF4444', color: '#fff', fontSize: 13, fontWeight: 600,
-                      opacity: returnNote.trim() ? 1 : 0.5,
+                      opacity: returnNoteValid ? 1 : 0.5,
                     }}>Вернуть</button>
                     <button onClick={() => setShowReturn(false)} style={{
                       padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer', background: '#fff', fontSize: 13,
