@@ -66,7 +66,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
       </div>
 
       {/* Greeting */}
-      <div style={{ fontSize: 13, color: '#888', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
+      <div className="topbar-greeting" style={{ fontSize: 13, color: '#888', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
         {getGreeting(currentUser.name)}
       </div>
 
@@ -75,7 +75,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
       {/* User info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#222' }}>{currentUser.name}</div>
+          <div className="topbar-user-name" style={{ fontSize: 13, fontWeight: 700, color: '#222' }}>{currentUser.name}</div>
           <div style={{ fontSize: 10, color: isDirector ? color : '#999', fontWeight: isDirector ? 700 : 500 }}>
             {isDirector ? '👑 Директор' : 'Сотрудник'}
           </div>

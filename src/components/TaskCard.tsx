@@ -107,10 +107,10 @@ export default function TaskCard({ task, onClick, draggable, onDragStart }: Task
       style={{
         background: bg, borderRadius: 12, padding: '14px 18px', cursor: 'pointer',
         border: `1.5px solid ${task.status === 'returned_for_revision' ? '#FECACA' : task.priority === 'urgent' ? '#FECACA' : '#EBEBEB'}`,
-        transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+        transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
         borderLeft: `4px solid ${pc}`,
       }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
