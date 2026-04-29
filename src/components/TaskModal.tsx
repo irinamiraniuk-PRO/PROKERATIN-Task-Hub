@@ -156,10 +156,12 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
     },
   ];
 
+  const userColor = currentUser.color ?? '#BE185D';
+
   const tabStyle = (tab: typeof activeTab): React.CSSProperties => ({
     padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-    borderBottom: activeTab === tab ? '2px solid #4A90D9' : '2px solid transparent',
-    color: activeTab === tab ? '#4A90D9' : '#666', background: 'none',
+    borderBottom: activeTab === tab ? `2px solid ${userColor}` : '2px solid transparent',
+    color: activeTab === tab ? userColor : '#666', background: 'none',
   });
 
   const checklist = task.checklist ?? [];
@@ -366,12 +368,12 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                   onChange={e => setComment(e.target.value)}
                   placeholder="Написать комментарий..."
                   style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, resize: 'none', minHeight: 60, outline: 'none' }}
-                  onFocus={e => (e.target.style.borderColor = '#4A90D9')}
+                  onFocus={e => (e.target.style.borderColor = userColor)}
                   onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
                 />
                 <button onClick={handleComment} disabled={!comment.trim()} style={{
                   padding: '0 16px', borderRadius: 8, border: 'none', cursor: comment.trim() ? 'pointer' : 'not-allowed',
-                  background: '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600, opacity: comment.trim() ? 1 : 0.5, alignSelf: 'stretch',
+                  background: userColor, color: '#fff', fontSize: 13, fontWeight: 600, opacity: comment.trim() ? 1 : 0.5, alignSelf: 'stretch',
                 }}>
                   Отправить
                 </button>
@@ -420,13 +422,13 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                     onKeyDown={e => e.key === 'Enter' && handleAddCheckItem()}
                     placeholder="Добавить пункт..."
                     style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, outline: 'none' }}
-                    onFocus={e => (e.target.style.borderColor = '#4A90D9')}
+                    onFocus={e => (e.target.style.borderColor = userColor)}
                     onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
                   />
                   <button onClick={handleAddCheckItem} disabled={!newCheckItem.trim()} style={{
                     padding: '8px 14px', borderRadius: 8, border: 'none',
                     cursor: newCheckItem.trim() ? 'pointer' : 'not-allowed',
-                    background: '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600,
+                    background: userColor, color: '#fff', fontSize: 13, fontWeight: 600,
                     opacity: newCheckItem.trim() ? 1 : 0.5,
                   }}>+ Добавить</button>
                 </div>

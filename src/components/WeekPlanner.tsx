@@ -155,7 +155,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
           >← Пред.</button>
           <button
             onClick={() => setWeekOffset(0)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #4A90D9', background: weekOffset === 0 ? '#4A90D9' : '#fff', color: weekOffset === 0 ? '#fff' : '#4A90D9', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #BE185D', background: weekOffset === 0 ? '#BE185D' : '#fff', color: weekOffset === 0 ? '#fff' : '#BE185D', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
           >Сегодня</button>
           <button
             onClick={() => setWeekOffset(w => w + 1)}
@@ -208,8 +208,8 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
                 onDrop={e => handleDrop(e, dayStr)}
                 style={{
                   borderRadius: 10,
-                  border: isOver ? '2px solid #4A90D9' : `1.5px solid ${isToday ? '#4A90D9' : '#E8E8E8'}`,
-                  background: isOver ? '#EFF6FF' : isToday ? '#F0F7FF' : '#fff',
+                  border: isOver ? '2px solid #BE185D' : `1.5px solid ${isToday ? '#BE185D' : '#E8E8E8'}`,
+                  background: isOver ? '#FFF0F7' : isToday ? '#FFF0F7' : '#fff',
                   display: 'flex', flexDirection: 'column', overflow: 'hidden',
                   transition: 'all 0.15s',
                 }}
@@ -217,7 +217,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
                 {/* Day header */}
                 <div style={{
                   padding: '8px 10px', borderBottom: '1px solid #F0F0F0',
-                  background: isToday ? '#4A90D9' : '#FAFAF8',
+                  background: isToday ? '#BE185D' : '#FAFAF8',
                 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? '#fff' : '#333' }}>{DAY_NAMES[i]}</div>
                   <div style={{ fontSize: 11, color: isToday ? 'rgba(255,255,255,0.8)' : '#999', marginTop: 1 }}>
@@ -238,7 +238,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
 
                 {/* Drop hint */}
                 {isOver && (
-                  <div style={{ padding: '6px', textAlign: 'center', fontSize: 11, color: '#4A90D9', borderTop: '1px solid #BFDBFE', background: '#EFF6FF' }}>
+                  <div style={{ padding: '6px', textAlign: 'center', fontSize: 11, color: '#BE185D', borderTop: '1px solid #FBCFE8', background: '#FFF0F7' }}>
                     Бросить сюда
                   </div>
                 )}

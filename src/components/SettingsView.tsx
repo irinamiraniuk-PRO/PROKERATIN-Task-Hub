@@ -53,9 +53,9 @@ export default function SettingsView() {
         <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 16 }}>👥 Пользователи системы</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {state.users.map(u => (
-            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, background: u.id === currentUser.id ? '#EEF4FB' : '#FAFAF8', border: `1px solid ${u.id === currentUser.id ? '#BFDBFE' : '#EBEBEB'}` }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: u.role === 'director' ? '#4A90D9' : '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
-                {u.name.charAt(0)}
+            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, background: u.id === currentUser.id ? '#FFF0F7' : '#FAFAF8', border: `1px solid ${u.id === currentUser.id ? '#FBCFE8' : '#EBEBEB'}` }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${u.color ?? '#BE185D'}, ${(u.color ?? '#BE185D')}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                {u.name.split(' ').map((p: string) => p[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>{u.name} {u.id === currentUser.id ? '(Вы)' : ''}</div>

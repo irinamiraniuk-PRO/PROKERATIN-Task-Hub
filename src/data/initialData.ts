@@ -243,7 +243,7 @@ export const INITIAL_TASKS: Task[] = [
       { id: 'cl10', text: 'Оформить в PowerPoint/Canva', done: false },
     ],
     comments: [
-      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Ульяна Токарь, сделайте акцент на динамику продаж керетиновых продуктов.', createdAt: d(-1) },
+      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Ульяна Токарь, сделайте акцент на динамику продаж кератиновых продуктов.', createdAt: d(-1) },
     ],
     history: [
       { id: 'h31', taskId: 't11', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-2) },

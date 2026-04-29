@@ -89,7 +89,7 @@ function MiniCalendar({ today, onDayClick }: { today: Date; onDayClick?: (d: Dat
               onClick={() => onDayClick?.(cell)}
               style={{
                 fontSize: 12, padding: '4px 2px', borderRadius: 6, cursor: onDayClick ? 'pointer' : 'default',
-                background: isToday ? '#4A90D9' : 'transparent',
+                background: isToday ? '#BE185D' : 'transparent',
                 color: isToday ? '#fff' : cell.getDay() === 0 || cell.getDay() === 6 ? '#F97316' : '#333',
                 fontWeight: isToday ? 700 : 400,
               }}
