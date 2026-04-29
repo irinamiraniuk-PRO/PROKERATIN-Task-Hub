@@ -1,0 +1,202 @@
+import type { User, Task } from '../types';
+
+export const USERS: User[] = [
+  { id: 'director', name: 'Директор', login: 'director', password: 'director123', role: 'director' },
+  { id: 'user1', name: 'Анна Смирнова', login: 'anna', password: 'anna123', role: 'employee' },
+  { id: 'user2', name: 'Максим Козлов', login: 'maxim', password: 'maxim123', role: 'employee' },
+  { id: 'user3', name: 'Елена Петрова', login: 'elena', password: 'elena123', role: 'employee' },
+  { id: 'user4', name: 'Дмитрий Волков', login: 'dmitry', password: 'dmitry123', role: 'employee' },
+];
+
+const now = new Date();
+const d = (offsetDays: number) => {
+  const date = new Date(now);
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString();
+};
+
+export const INITIAL_TASKS: Task[] = [
+  {
+    id: 't1',
+    title: 'Подготовить квартальный отчёт',
+    description: 'Составить финансовый отчёт за Q2 2025 с разбивкой по статьям расходов и доходов.',
+    createdBy: 'director',
+    assignedTo: 'user3',
+    createdAt: d(-10),
+    deadline: d(2),
+    priority: 'urgent',
+    status: 'in_progress',
+    comments: [
+      { id: 'c1', taskId: 't1', authorId: 'user3', text: 'Приступила к работе, уже собрала данные за апрель и май.', createdAt: d(-8) },
+      { id: 'c2', taskId: 't1', authorId: 'director', text: 'Отлично, не забудьте включить данные по амортизации.', createdAt: d(-7) },
+    ],
+    history: [
+      { id: 'h1', taskId: 't1', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-10) },
+      { id: 'h2', taskId: 't1', actorId: 'user3', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-9) },
+      { id: 'h3', taskId: 't1', actorId: 'user3', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-8) },
+    ],
+  },
+  {
+    id: 't2',
+    title: 'Обновить корпоративный сайт',
+    description: 'Обновить раздел «О компании» и добавить новые фотографии команды.',
+    createdBy: 'director',
+    assignedTo: 'user1',
+    createdAt: d(-7),
+    deadline: d(5),
+    priority: 'medium',
+    status: 'accepted',
+    comments: [],
+    history: [
+      { id: 'h4', taskId: 't2', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-7) },
+      { id: 'h5', taskId: 't2', actorId: 'user1', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-6) },
+    ],
+  },
+  {
+    id: 't3',
+    title: 'Провести анализ конкурентов',
+    description: 'Изучить предложения конкурентов по основным продуктовым линейкам, составить сравнительную таблицу.',
+    createdBy: 'user1',
+    assignedTo: 'user2',
+    createdAt: d(-5),
+    deadline: d(-1),
+    priority: 'high',
+    status: 'overdue',
+    comments: [
+      { id: 'c3', taskId: 't3', authorId: 'user1', text: 'Максим, срок уже истёк. Когда будет готово?', createdAt: d(0) },
+    ],
+    history: [
+      { id: 'h6', taskId: 't3', actorId: 'user1', action: 'Задача создана', toStatus: 'new', createdAt: d(-5) },
+      { id: 'h7', taskId: 't3', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-4) },
+      { id: 'h8', taskId: 't3', actorId: 'user2', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-3) },
+      { id: 'h9', taskId: 't3', actorId: 'system', action: 'Задача просрочена', fromStatus: 'in_progress', toStatus: 'overdue', createdAt: d(0) },
+    ],
+  },
+  {
+    id: 't4',
+    title: 'Настроить CRM-систему',
+    description: 'Создать воронки продаж и импортировать базу клиентов в новую CRM.',
+    createdBy: 'director',
+    assignedTo: 'user4',
+    createdAt: d(-6),
+    deadline: d(10),
+    priority: 'high',
+    status: 'transferred',
+    transferredTo: 'user2',
+    transferredFrom: 'user4',
+    comments: [],
+    history: [
+      { id: 'h10', taskId: 't4', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-6) },
+      { id: 'h11', taskId: 't4', actorId: 'user4', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-5) },
+      { id: 'h12', taskId: 't4', actorId: 'user4', action: 'Передана пользователю Максим Козлов', fromStatus: 'accepted', toStatus: 'transferred', createdAt: d(-3), meta: 'user2' },
+    ],
+  },
+  {
+    id: 't5',
+    title: 'Разработать план маркетинга на Q3',
+    description: 'Составить маркетинговый план на III квартал с бюджетом и KPI.',
+    createdBy: 'director',
+    assignedTo: 'user1',
+    createdAt: d(-3),
+    deadline: d(7),
+    priority: 'medium',
+    status: 'pending_director_review',
+    comments: [
+      { id: 'c4', taskId: 't5', authorId: 'user1', text: 'План готов, отправляю на проверку директору.', createdAt: d(-1) },
+    ],
+    history: [
+      { id: 'h13', taskId: 't5', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-3) },
+      { id: 'h14', taskId: 't5', actorId: 'user1', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-2) },
+      { id: 'h15', taskId: 't5', actorId: 'user1', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-2) },
+      { id: 'h16', taskId: 't5', actorId: 'user1', action: 'Отправлено на проверку директору', fromStatus: 'in_progress', toStatus: 'pending_director_review', createdAt: d(-1) },
+    ],
+  },
+  {
+    id: 't6',
+    title: 'Обучить нового сотрудника',
+    description: 'Провести вводный инструктаж для нового члена команды, показать основные процессы.',
+    createdBy: 'director',
+    assignedTo: 'user2',
+    createdAt: d(-15),
+    deadline: d(-5),
+    priority: 'low',
+    status: 'completed',
+    comments: [
+      { id: 'c5', taskId: 't6', authorId: 'user2', text: 'Инструктаж проведён, сотрудник приступил к работе.', createdAt: d(-5) },
+    ],
+    history: [
+      { id: 'h17', taskId: 't6', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-15) },
+      { id: 'h18', taskId: 't6', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-14) },
+      { id: 'h19', taskId: 't6', actorId: 'user2', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-10) },
+      { id: 'h20', taskId: 't6', actorId: 'user2', action: 'Задача выполнена', fromStatus: 'in_progress', toStatus: 'completed', createdAt: d(-5) },
+    ],
+  },
+  {
+    id: 't7',
+    title: 'Подготовить договор с поставщиком',
+    description: 'Согласовать и подписать договор поставки с ООО «СтройМаркет».',
+    createdBy: 'user3',
+    assignedTo: 'user3',
+    createdAt: d(-2),
+    deadline: d(3),
+    priority: 'high',
+    status: 'new',
+    comments: [],
+    history: [
+      { id: 'h21', taskId: 't7', actorId: 'user3', action: 'Задача создана', toStatus: 'new', createdAt: d(-2) },
+    ],
+  },
+  {
+    id: 't8',
+    title: 'Аудит IT-инфраструктуры',
+    description: 'Проверить серверы, рабочие станции и сетевое оборудование на соответствие стандартам.',
+    createdBy: 'director',
+    assignedTo: 'user4',
+    createdAt: d(-20),
+    deadline: d(-10),
+    priority: 'medium',
+    status: 'closed',
+    comments: [],
+    history: [
+      { id: 'h22', taskId: 't8', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-20) },
+      { id: 'h23', taskId: 't8', actorId: 'user4', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-19) },
+      { id: 'h24', taskId: 't8', actorId: 'user4', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-18) },
+      { id: 'h25', taskId: 't8', actorId: 'user4', action: 'Задача выполнена', fromStatus: 'in_progress', toStatus: 'completed', createdAt: d(-11) },
+      { id: 'h26', taskId: 't8', actorId: 'director', action: 'Задача закрыта', fromStatus: 'completed', toStatus: 'closed', createdAt: d(-10) },
+    ],
+  },
+  {
+    id: 't9',
+    title: 'Организовать корпоративное мероприятие',
+    description: 'Спланировать и провести тимбилдинг для отдела продаж (10–15 человек).',
+    createdBy: 'director',
+    assignedTo: 'user1',
+    createdAt: d(-1),
+    deadline: d(14),
+    priority: 'low',
+    status: 'new',
+    comments: [],
+    history: [
+      { id: 'h27', taskId: 't9', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-1) },
+    ],
+  },
+  {
+    id: 't10',
+    title: 'Обновить прайс-лист',
+    description: 'Скорректировать цены в соответствии с новой ценовой политикой и разослать клиентам.',
+    createdBy: 'user3',
+    assignedTo: 'user3',
+    createdAt: d(-4),
+    deadline: d(1),
+    priority: 'medium',
+    status: 'in_progress',
+    comments: [
+      { id: 'c6', taskId: 't10', authorId: 'user3', text: 'Половину позиций уже обновила.', createdAt: d(-1) },
+    ],
+    history: [
+      { id: 'h28', taskId: 't10', actorId: 'user3', action: 'Задача создана', toStatus: 'new', createdAt: d(-4) },
+      { id: 'h29', taskId: 't10', actorId: 'user3', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-3) },
+      { id: 'h30', taskId: 't10', actorId: 'user3', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-2) },
+    ],
+  },
+];
