@@ -1,11 +1,11 @@
 import type { User, Task } from '../types';
 
 export const USERS: User[] = [
-  { id: 'director', name: 'Директор', login: 'director', password: 'director123', role: 'director' },
-  { id: 'user1', name: 'Анна Смирнова', login: 'anna', password: 'anna123', role: 'employee' },
-  { id: 'user2', name: 'Максим Козлов', login: 'maxim', password: 'maxim123', role: 'employee' },
-  { id: 'user3', name: 'Елена Петрова', login: 'elena', password: 'elena123', role: 'employee' },
-  { id: 'user4', name: 'Дмитрий Волков', login: 'dmitry', password: 'dmitry123', role: 'employee' },
+  { id: 'director', name: 'Ирина Миранюк', login: 'irina', password: 'irina123', role: 'director', color: '#BE185D' },
+  { id: 'user1', name: 'Ульяна Токарь', login: 'ulyana_t', password: 'ulyana_t123', role: 'employee', color: '#7C3AED' },
+  { id: 'user2', name: 'Ульяна', login: 'ulyana', password: 'ulyana123', role: 'employee', color: '#0891B2' },
+  { id: 'user3', name: 'Натали', login: 'natali', password: 'natali123', role: 'employee', color: '#EA580C' },
+  { id: 'user4', name: 'Марина', login: 'marina', password: 'marina123', role: 'employee', color: '#16A34A' },
 ];
 
 const now = new Date();
@@ -83,7 +83,7 @@ export const INITIAL_TASKS: Task[] = [
     priority: 'high',
     status: 'overdue',
     comments: [
-      { id: 'c3', taskId: 't3', authorId: 'user1', text: 'Максим, срок уже истёк. Когда будет готово?', createdAt: d(0) },
+      { id: 'c3', taskId: 't3', authorId: 'user1', text: 'Ульяна, срок уже истёк. Когда будет готово?', createdAt: d(0) },
     ],
     history: [
       { id: 'h6', taskId: 't3', actorId: 'user1', action: 'Задача создана', toStatus: 'new', createdAt: d(-5) },
@@ -109,7 +109,7 @@ export const INITIAL_TASKS: Task[] = [
     history: [
       { id: 'h10', taskId: 't4', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-6) },
       { id: 'h11', taskId: 't4', actorId: 'user4', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-5) },
-      { id: 'h12', taskId: 't4', actorId: 'user4', action: 'Передана пользователю Максим Козлов', fromStatus: 'accepted', toStatus: 'transferred', createdAt: d(-3), meta: 'user2' },
+      { id: 'h12', taskId: 't4', actorId: 'user4', action: 'Передана пользователю Ульяна', fromStatus: 'accepted', toStatus: 'transferred', createdAt: d(-3), meta: 'user2' },
     ],
   },
   {
@@ -243,7 +243,7 @@ export const INITIAL_TASKS: Task[] = [
       { id: 'cl10', text: 'Оформить в PowerPoint/Canva', done: false },
     ],
     comments: [
-      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Анна, сделайте акцент на динамику продаж керетиновых продуктов.', createdAt: d(-1) },
+      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Ульяна Токарь, сделайте акцент на динамику продаж керетиновых продуктов.', createdAt: d(-1) },
     ],
     history: [
       { id: 'h31', taskId: 't11', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-2) },

@@ -22,6 +22,7 @@ export interface User {
   password: string;
   role: UserRole;
   avatar?: string;
+  color?: string;
 }
 
 export interface Comment {

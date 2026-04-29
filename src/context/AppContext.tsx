@@ -2,7 +2,7 @@ import { createContext, useContext, useReducer, useEffect, type ReactNode } from
 import type { AppState, User, Task, TaskStatus, TaskPriority, Comment, HistoryEntry, ChecklistItem } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 
-const LS_KEY = 'prokeratin_state_v2';
+const LS_KEY = 'prokeratin_state_v3';
 
 type Action =
   | { type: 'LOGIN'; user: User }

@@ -6,10 +6,6 @@ import TaskModal from './TaskModal';
 
 const TZ = 'Europe/Minsk';
 
-function getMinskDateStr(date: Date): string {
-  return date.toLocaleDateString('ru-RU', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
-}
-
 function toMinskLocalDate(date: Date): Date {
   return new Date(date.toLocaleDateString('en-CA', { timeZone: TZ }));
 }

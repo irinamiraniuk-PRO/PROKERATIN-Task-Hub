@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
 import TaskModal from './TaskModal';
-import { PRIORITY_LABELS, STATUS_LABELS, statusColor, priorityColor, formatDate, isOverdue } from './TaskCard';
+import { STATUS_LABELS, statusColor, priorityColor, formatDate, isOverdue } from './TaskCard';
 
 function getMondayOfWeek(date: Date): Date {
   const d = new Date(date);
@@ -31,7 +31,6 @@ function toISODateStr(date: Date): string {
 }
 
 const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-const DAY_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 interface MiniTaskCardProps {
   task: Task;
@@ -114,10 +113,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
     }
   });
 
-  let draggedTaskId: string | null = null;
-
   function handleDragStart(e: React.DragEvent, task: Task) {
-    draggedTaskId = task.id;
     e.dataTransfer.setData('taskId', task.id);
     e.dataTransfer.effectAllowed = 'move';
   }
@@ -129,7 +125,6 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
       setPlannedDate(taskId, targetDay);
     }
     setDragOverDay(null);
-    draggedTaskId = null;
   }
 
   function handleDropUnplanned(e: React.DragEvent) {
