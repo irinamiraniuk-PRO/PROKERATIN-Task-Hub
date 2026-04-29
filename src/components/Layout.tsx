@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Sidebar, { type View } from './Sidebar';
+import BottomNav from './BottomNav';
 import TopBar from './TopBar';
 import Dashboard from './Dashboard';
 import DirectorDashboard from './DirectorDashboard';
@@ -44,18 +45,24 @@ export default function Layout() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#FAFAF8', overflow: 'hidden' }}>
-      <Sidebar
+      <div className="sidebar-wrapper">
+        <Sidebar
+          currentView={view}
+          onViewChange={v => { setView(v); setSearchQuery(''); }}
+          onCreateTask={() => setShowCreate(true)}
+        />
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto' }}>
+          {renderView()}
+        </main>
+      </div>
+      <BottomNav
         currentView={view}
         onViewChange={v => { setView(v); setSearchQuery(''); }}
         onCreateTask={() => setShowCreate(true)}
       />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        <main style={{ flex: 1, overflowY: 'auto' }}>
-          {renderView()}
-        </main>
-      </div>
-
       {showCreate && <CreateTaskModal onClose={() => setShowCreate(false)} />}
     </div>
   );

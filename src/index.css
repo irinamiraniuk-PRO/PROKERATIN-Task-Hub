@@ -119,3 +119,107 @@ button, input, select, textarea {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+
+/* ── Responsive & Mobile ─────────────────────────────── */
+
+:root {
+  --z-sidebar: 200;
+  --z-topbar: 100;
+  --z-modal: 1000;
+  --z-bottomnav: 300;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.05); }
+}
+
+/* Sidebar wrapper - hidden on mobile */
+.sidebar-wrapper {
+  display: flex;
+}
+@media (max-width: 640px) {
+  .sidebar-wrapper { display: none !important; }
+}
+
+/* Bottom nav - visible only on mobile */
+.bottom-nav {
+  display: none;
+}
+@media (max-width: 640px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-top: 1px solid #EBEBEB;
+    z-index: var(--z-bottomnav);
+    padding: 6px 0 env(safe-area-inset-bottom, 6px);
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  }
+}
+
+/* Main content padding at bottom on mobile (for bottom nav) */
+@media (max-width: 640px) {
+  .main-scroll-area {
+    padding-bottom: 72px !important;
+  }
+  .topbar-greeting { display: none; }
+  .topbar-user-name { display: none; }
+}
+
+/* Responsive grids */
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .responsive-grid-2 { grid-template-columns: 1fr; gap: 10px; }
+}
+
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 220px;
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .responsive-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .responsive-grid-3 { grid-template-columns: 1fr; gap: 10px; }
+}
+
+/* Modal fullscreen on mobile */
+@media (max-width: 640px) {
+  .modal-fullscreen-mobile {
+    max-height: 100vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    height: 100% !important;
+  }
+  .modal-overlay-mobile {
+    padding: 0 !important;
+    align-items: flex-start !important;
+  }
+}
+
+/* Button micro-animations */
+.btn-primary {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease !important;
+}
+.btn-primary:hover {
+  transform: translateY(-2px) !important;
+}
+.btn-primary:active {
+  transform: scale(0.97) !important;
+}

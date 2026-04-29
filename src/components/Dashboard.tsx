@@ -168,7 +168,7 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
   const timeLabel = now.toLocaleTimeString('ru-RU', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1100 }}>
+    <div className="anim-fade-in" style={{ padding: '24px 28px 24px', maxWidth: 1100 }}>
       {/* Welcome bar */}
       <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -204,7 +204,7 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
       </div>
 
       {/* Efficiency + Calendar row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 220px', gap: 16, marginBottom: 20 }}>
+      <div className="responsive-grid-3" style={{ marginBottom: 20 }}>
         {/* Day efficiency */}
         <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#333', marginBottom: 12 }}>📈 Эффективность за неделю</div>
@@ -253,7 +253,7 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
       </div>
 
       {/* Urgent and recent */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="responsive-grid-2">
         {/* Urgent */}
         <div style={{ background: '#fff', borderRadius: 12, padding: '18px 20px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 12 }}>🔥 Срочные и просроченные</div>

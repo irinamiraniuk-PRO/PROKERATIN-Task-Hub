@@ -52,11 +52,11 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   };
 
   return (
-    <div style={{
+    <div className="modal-overlay-mobile" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
+      <div className="modal-fullscreen-mobile" style={{
         background: '#fff', borderRadius: 16, width: '100%', maxWidth: 560,
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden',
         maxHeight: '90vh', overflowY: 'auto',
