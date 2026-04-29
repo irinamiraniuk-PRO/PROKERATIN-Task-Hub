@@ -23,19 +23,20 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [description, setDescription] = useState('');
   const [assignedTo, setAssignedTo] = useState(currentUser?.id ?? '');
   const [deadline, setDeadline] = useState(today);
+  const [plannedDate, setPlannedDate] = useState(today);
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [error, setError] = useState('');
 
   const availableUsers = currentUser?.role === 'director'
     ? users
-    : users.filter(u => u.role === 'employee' || u.role === 'director');
+    : users;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) { setError('Введите название задачи'); return; }
     if (!assignedTo) { setError('Выберите исполнителя'); return; }
     if (!deadline) { setError('Укажите срок'); return; }
-    createTask({ title: title.trim(), description: description.trim(), assignedTo, deadline, priority });
+    createTask({ title: title.trim(), description: description.trim(), assignedTo, deadline: deadline + 'T23:59:59.000Z', priority, plannedDate: plannedDate || undefined });
     onClose();
   }
 
@@ -52,20 +53,21 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{
-        background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520,
+        background: '#fff', borderRadius: 16, width: '100%', maxWidth: 560,
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden',
+        maxHeight: '90vh', overflowY: 'auto',
       }}>
         {/* Header */}
-        <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid #F0F0F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid #F0F0F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111' }}>Создать задачу</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleSubmit} style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label style={labelStyle}>Название *</label>
             <input
@@ -91,7 +93,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label style={labelStyle}>Исполнитель *</label>
               <select
@@ -102,7 +104,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                 onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
               >
                 {availableUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
+                  <option key={u.id} value={u.id}>{u.name} {u.role === 'director' ? '(Директор)' : ''}</option>
                 ))}
               </select>
             </div>
@@ -123,17 +125,30 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
             </div>
           </div>
 
-          <div>
-            <label style={labelStyle}>Срок выполнения *</label>
-            <input
-              type="date"
-              value={deadline}
-              onChange={e => { setDeadline(e.target.value); setError(''); }}
-              min={today}
-              style={{ ...inputStyle, cursor: 'pointer' }}
-              onFocus={e => (e.target.style.borderColor = '#4A90D9')}
-              onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Дедлайн *</label>
+              <input
+                type="date"
+                value={deadline}
+                onChange={e => { setDeadline(e.target.value); setError(''); }}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                onFocus={e => (e.target.style.borderColor = '#4A90D9')}
+                onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Запланировать на</label>
+              <input
+                type="date"
+                value={plannedDate}
+                onChange={e => setPlannedDate(e.target.value)}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                onFocus={e => (e.target.style.borderColor = '#4A90D9')}
+                onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+              />
+            </div>
           </div>
 
           {error && (

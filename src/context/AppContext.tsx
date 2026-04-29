@@ -1,8 +1,8 @@
 import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
-import type { AppState, User, Task, TaskStatus, TaskPriority, Comment, HistoryEntry } from '../types';
+import type { AppState, User, Task, TaskStatus, TaskPriority, Comment, HistoryEntry, ChecklistItem } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 
-const LS_KEY = 'prokeratin_state';
+const LS_KEY = 'prokeratin_state_v2';
 
 type Action =
   | { type: 'LOGIN'; user: User }
@@ -11,7 +11,12 @@ type Action =
   | { type: 'UPDATE_STATUS'; taskId: string; status: TaskStatus; actorId: string; meta?: string }
   | { type: 'TRANSFER_TASK'; taskId: string; toUserId: string; actorId: string; toUserName: string }
   | { type: 'ADD_COMMENT'; comment: Comment; taskId: string; actorId: string }
-  | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string };
+  | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string }
+  | { type: 'SET_PLANNED_DATE'; taskId: string; plannedDate: string }
+  | { type: 'UPDATE_DEADLINE'; taskId: string; deadline: string; actorId: string }
+  | { type: 'TOGGLE_CHECKLIST_ITEM'; taskId: string; itemId: string }
+  | { type: 'ADD_CHECKLIST_ITEM'; taskId: string; item: ChecklistItem }
+  | { type: 'SEND_TO_DIRECTOR'; taskId: string; actorId: string };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -29,6 +34,7 @@ function statusActionLabel(status: TaskStatus): string {
     waiting_response: 'Ожидание ответа',
     transferred: 'Задача передана',
     pending_director_review: 'Отправлено на проверку директору',
+    returned_for_revision: 'Возвращена на доработку',
     completed: 'Задача выполнена',
     closed: 'Задача закрыта',
     postponed: 'Задача отложена',
@@ -50,6 +56,14 @@ function reducer(state: AppState, action: Action): AppState {
         if (t.id !== action.taskId) return t;
         const entry = historyEntry(t.id, action.actorId, statusActionLabel(action.status), t.status, action.status, action.meta);
         return { ...t, status: action.status, history: [...t.history, entry] };
+      });
+      return { ...state, tasks };
+    }
+    case 'SEND_TO_DIRECTOR': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const entry = historyEntry(t.id, action.actorId, 'Отправлено на проверку директору', t.status, 'pending_director_review');
+        return { ...t, status: 'pending_director_review' as TaskStatus, sentToDirectorAt: new Date().toISOString(), history: [...t.history, entry] };
       });
       return { ...state, tasks };
     }
@@ -82,9 +96,43 @@ function reducer(state: AppState, action: Action): AppState {
           const entry = historyEntry(t.id, action.actorId, 'Директор одобрил и закрыл задачу', t.status, 'closed');
           return { ...t, status: 'closed' as TaskStatus, history: [...t.history, entry] };
         } else {
-          const entry = historyEntry(t.id, action.actorId, `Директор вернул на доработку: ${action.note ?? ''}`, t.status, 'in_progress');
-          return { ...t, status: 'in_progress' as TaskStatus, history: [...t.history, entry] };
+          const note = action.note ?? '';
+          const entry = historyEntry(t.id, action.actorId, `Директор вернул на доработку: ${note}`, t.status, 'returned_for_revision');
+          return { ...t, status: 'returned_for_revision' as TaskStatus, history: [...t.history, entry] };
         }
+      });
+      return { ...state, tasks };
+    }
+    case 'SET_PLANNED_DATE': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        return { ...t, plannedDate: action.plannedDate };
+      });
+      return { ...state, tasks };
+    }
+    case 'UPDATE_DEADLINE': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const entry = historyEntry(t.id, action.actorId, `Дедлайн изменён на ${action.deadline}`);
+        return { ...t, deadline: action.deadline, history: [...t.history, entry] };
+      });
+      return { ...state, tasks };
+    }
+    case 'TOGGLE_CHECKLIST_ITEM': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const checklist = (t.checklist ?? []).map(item =>
+          item.id === action.itemId ? { ...item, done: !item.done } : item
+        );
+        return { ...t, checklist };
+      });
+      return { ...state, tasks };
+    }
+    case 'ADD_CHECKLIST_ITEM': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const checklist = [...(t.checklist ?? []), action.item];
+        return { ...t, checklist };
       });
       return { ...state, tasks };
     }
@@ -121,12 +169,16 @@ interface AppContextValue {
   state: AppState;
   login: (login: string, password: string) => boolean;
   logout: () => void;
-  createTask: (data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority }) => void;
+  createTask: (data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string }) => void;
   updateStatus: (taskId: string, status: TaskStatus, meta?: string) => void;
   transferTask: (taskId: string, toUserId: string) => void;
   sendToDirectorReview: (taskId: string) => void;
   addComment: (taskId: string, text: string) => void;
   directorAction: (taskId: string, action: 'approve' | 'return', note?: string) => void;
+  setPlannedDate: (taskId: string, plannedDate: string) => void;
+  updateDeadline: (taskId: string, deadline: string) => void;
+  toggleChecklistItem: (taskId: string, itemId: string) => void;
+  addChecklistItem: (taskId: string, text: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -146,18 +198,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function logout() { dispatch({ type: 'LOGOUT' }); }
 
-  function createTask(data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority }) {
+  function createTask(data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string }) {
     if (!state.currentUser) return;
     const id = uid();
-    const now = new Date().toISOString();
+    const nowTs = new Date().toISOString();
     const task: Task = {
       id,
       title: data.title,
       description: data.description,
       createdBy: state.currentUser.id,
       assignedTo: data.assignedTo,
-      createdAt: now,
+      createdAt: nowTs,
       deadline: data.deadline,
+      plannedDate: data.plannedDate,
       priority: data.priority,
       status: 'new',
       comments: [],
@@ -180,7 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function sendToDirectorReview(taskId: string) {
     if (!state.currentUser) return;
-    dispatch({ type: 'UPDATE_STATUS', taskId, status: 'pending_director_review', actorId: state.currentUser.id });
+    dispatch({ type: 'SEND_TO_DIRECTOR', taskId, actorId: state.currentUser.id });
   }
 
   function addComment(taskId: string, text: string) {
@@ -194,8 +247,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'DIRECTOR_ACTION', taskId, action, actorId: state.currentUser.id, note });
   }
 
+  function setPlannedDate(taskId: string, plannedDate: string) {
+    dispatch({ type: 'SET_PLANNED_DATE', taskId, plannedDate });
+  }
+
+  function updateDeadline(taskId: string, deadline: string) {
+    if (!state.currentUser) return;
+    dispatch({ type: 'UPDATE_DEADLINE', taskId, deadline, actorId: state.currentUser.id });
+  }
+
+  function toggleChecklistItem(taskId: string, itemId: string) {
+    dispatch({ type: 'TOGGLE_CHECKLIST_ITEM', taskId, itemId });
+  }
+
+  function addChecklistItem(taskId: string, text: string) {
+    const item: ChecklistItem = { id: uid(), text, done: false };
+    dispatch({ type: 'ADD_CHECKLIST_ITEM', taskId, item });
+  }
+
   return (
-    <AppContext.Provider value={{ state, login, logout, createTask, updateStatus, transferTask, sendToDirectorReview, addComment, directorAction }}>
+    <AppContext.Provider value={{
+      state, login, logout, createTask, updateStatus, transferTask,
+      sendToDirectorReview, addComment, directorAction,
+      setPlannedDate, updateDeadline, toggleChecklistItem, addChecklistItem,
+    }}>
       {children}
     </AppContext.Provider>
   );

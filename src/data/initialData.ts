@@ -9,23 +9,37 @@ export const USERS: User[] = [
 ];
 
 const now = new Date();
+
 const d = (offsetDays: number) => {
   const date = new Date(now);
   date.setDate(date.getDate() + offsetDays);
   return date.toISOString();
 };
 
+const dateStr = (offsetDays: number) => {
+  const date = new Date(now);
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+};
+
 export const INITIAL_TASKS: Task[] = [
   {
     id: 't1',
     title: 'Подготовить квартальный отчёт',
-    description: 'Составить финансовый отчёт за Q2 2025 с разбивкой по статьям расходов и доходов.',
+    description: 'Составить финансовый отчёт за Q2 2026 с разбивкой по статьям расходов и доходов.',
     createdBy: 'director',
     assignedTo: 'user3',
     createdAt: d(-10),
     deadline: d(2),
+    plannedDate: dateStr(0),
     priority: 'urgent',
     status: 'in_progress',
+    checklist: [
+      { id: 'cl1', text: 'Собрать данные за апрель', done: true },
+      { id: 'cl2', text: 'Собрать данные за май', done: true },
+      { id: 'cl3', text: 'Включить данные по амортизации', done: false },
+      { id: 'cl4', text: 'Проверить сводные таблицы', done: false },
+    ],
     comments: [
       { id: 'c1', taskId: 't1', authorId: 'user3', text: 'Приступила к работе, уже собрала данные за апрель и май.', createdAt: d(-8) },
       { id: 'c2', taskId: 't1', authorId: 'director', text: 'Отлично, не забудьте включить данные по амортизации.', createdAt: d(-7) },
@@ -44,8 +58,13 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user1',
     createdAt: d(-7),
     deadline: d(5),
+    plannedDate: dateStr(1),
     priority: 'medium',
     status: 'accepted',
+    checklist: [
+      { id: 'cl5', text: 'Обновить текст раздела "О компании"', done: false },
+      { id: 'cl6', text: 'Загрузить новые фото команды', done: false },
+    ],
     comments: [],
     history: [
       { id: 'h4', taskId: 't2', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-7) },
@@ -60,6 +79,7 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user2',
     createdAt: d(-5),
     deadline: d(-1),
+    plannedDate: dateStr(-1),
     priority: 'high',
     status: 'overdue',
     comments: [
@@ -80,6 +100,7 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user4',
     createdAt: d(-6),
     deadline: d(10),
+    plannedDate: dateStr(2),
     priority: 'high',
     status: 'transferred',
     transferredTo: 'user2',
@@ -99,8 +120,10 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user1',
     createdAt: d(-3),
     deadline: d(7),
+    plannedDate: dateStr(-1),
     priority: 'medium',
     status: 'pending_director_review',
+    sentToDirectorAt: d(-1),
     comments: [
       { id: 'c4', taskId: 't5', authorId: 'user1', text: 'План готов, отправляю на проверку директору.', createdAt: d(-1) },
     ],
@@ -139,6 +162,7 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user3',
     createdAt: d(-2),
     deadline: d(3),
+    plannedDate: dateStr(0),
     priority: 'high',
     status: 'new',
     comments: [],
@@ -173,6 +197,7 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user1',
     createdAt: d(-1),
     deadline: d(14),
+    plannedDate: dateStr(3),
     priority: 'low',
     status: 'new',
     comments: [],
@@ -188,6 +213,7 @@ export const INITIAL_TASKS: Task[] = [
     assignedTo: 'user3',
     createdAt: d(-4),
     deadline: d(1),
+    plannedDate: dateStr(0),
     priority: 'medium',
     status: 'in_progress',
     comments: [
@@ -199,4 +225,115 @@ export const INITIAL_TASKS: Task[] = [
       { id: 'h30', taskId: 't10', actorId: 'user3', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-2) },
     ],
   },
+  {
+    id: 't11',
+    title: 'Подготовить презентацию для инвесторов',
+    description: 'Создать презентацию с результатами Q1 2026 и прогнозом на Q2–Q4 2026.',
+    createdBy: 'director',
+    assignedTo: 'user1',
+    createdAt: d(-2),
+    deadline: d(4),
+    plannedDate: dateStr(1),
+    priority: 'urgent',
+    status: 'in_progress',
+    checklist: [
+      { id: 'cl7', text: 'Собрать финансовые данные', done: true },
+      { id: 'cl8', text: 'Подготовить графики роста', done: false },
+      { id: 'cl9', text: 'Написать аналитический блок', done: false },
+      { id: 'cl10', text: 'Оформить в PowerPoint/Canva', done: false },
+    ],
+    comments: [
+      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Анна, сделайте акцент на динамику продаж керетиновых продуктов.', createdAt: d(-1) },
+    ],
+    history: [
+      { id: 'h31', taskId: 't11', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-2) },
+      { id: 'h32', taskId: 't11', actorId: 'user1', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-1) },
+      { id: 'h33', taskId: 't11', actorId: 'user1', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-1) },
+    ],
+  },
+  {
+    id: 't12',
+    title: 'Разработать скрипт продаж',
+    description: 'Написать скрипт холодных звонков для нового продукта PROKERATIN Professional.',
+    createdBy: 'director',
+    assignedTo: 'user2',
+    createdAt: d(-3),
+    deadline: d(6),
+    plannedDate: dateStr(2),
+    priority: 'medium',
+    status: 'returned_for_revision',
+    comments: [
+      { id: 'c8', taskId: 't12', authorId: 'user2', text: 'Скрипт готов, отправляю на проверку.', createdAt: d(-2) },
+      { id: 'c9', taskId: 't12', authorId: 'director', text: 'Нужно добавить блок с обработкой возражений и переработать вступительную часть.', createdAt: d(-1) },
+    ],
+    history: [
+      { id: 'h34', taskId: 't12', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-3) },
+      { id: 'h35', taskId: 't12', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-3) },
+      { id: 'h36', taskId: 't12', actorId: 'user2', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-2) },
+      { id: 'h37', taskId: 't12', actorId: 'user2', action: 'Отправлено на проверку директору', fromStatus: 'in_progress', toStatus: 'pending_director_review', createdAt: d(-2) },
+      { id: 'h38', taskId: 't12', actorId: 'director', action: 'Директор вернул на доработку: Нужно добавить блок с обработкой возражений', fromStatus: 'pending_director_review', toStatus: 'returned_for_revision', createdAt: d(-1) },
+    ],
+  },
+  {
+    id: 't13',
+    title: 'Проверить складской учёт',
+    description: 'Сверить фактические остатки на складе с данными в 1С за апрель–май 2026.',
+    createdBy: 'director',
+    assignedTo: 'user4',
+    createdAt: d(-1),
+    deadline: d(3),
+    plannedDate: dateStr(0),
+    priority: 'high',
+    status: 'pending_director_review',
+    sentToDirectorAt: d(0),
+    comments: [
+      { id: 'c10', taskId: 't13', authorId: 'user4', text: 'Сверка завершена, все расхождения зафиксированы. Отчёт прикреплён.', createdAt: d(0) },
+    ],
+    history: [
+      { id: 'h39', taskId: 't13', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-1) },
+      { id: 'h40', taskId: 't13', actorId: 'user4', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-1) },
+      { id: 'h41', taskId: 't13', actorId: 'user4', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(0) },
+      { id: 'h42', taskId: 't13', actorId: 'user4', action: 'Отправлено на проверку директору', fromStatus: 'in_progress', toStatus: 'pending_director_review', createdAt: d(0) },
+    ],
+  },
+  {
+    id: 't14',
+    title: 'Написать регламент работы с клиентами',
+    description: 'Описать стандарты обслуживания клиентов: время ответа, эскалация, закрытие запросов.',
+    createdBy: 'user3',
+    assignedTo: 'user3',
+    createdAt: d(-5),
+    deadline: d(8),
+    plannedDate: dateStr(4),
+    priority: 'medium',
+    status: 'waiting_response',
+    transferredTo: 'director',
+    transferredFrom: 'user3',
+    comments: [
+      { id: 'c11', taskId: 't14', authorId: 'user3', text: 'Жду обратной связи по структуре регламента от директора.', createdAt: d(-1) },
+    ],
+    history: [
+      { id: 'h43', taskId: 't14', actorId: 'user3', action: 'Задача создана', toStatus: 'new', createdAt: d(-5) },
+      { id: 'h44', taskId: 't14', actorId: 'user3', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-4) },
+      { id: 'h45', taskId: 't14', actorId: 'user3', action: 'Ожидание ответа директора', fromStatus: 'accepted', toStatus: 'waiting_response', createdAt: d(-1) },
+    ],
+  },
+  {
+    id: 't15',
+    title: 'Обновить Instagram-контент план',
+    description: 'Составить контент-план для Instagram на июнь–июль 2026 с визуалами и хэштегами.',
+    createdBy: 'director',
+    assignedTo: 'user1',
+    createdAt: d(0),
+    deadline: d(5),
+    plannedDate: dateStr(0),
+    priority: 'medium',
+    status: 'new',
+    comments: [],
+    history: [
+      { id: 'h46', taskId: 't15', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(0) },
+    ],
+  },
 ];
+
+

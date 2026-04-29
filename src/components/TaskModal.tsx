@@ -9,13 +9,23 @@ interface TaskModalProps {
 }
 
 export default function TaskModal({ task, onClose }: TaskModalProps) {
-  const { state, updateStatus, transferTask, sendToDirectorReview, addComment, directorAction } = useApp();
+  const {
+    state, updateStatus, transferTask, sendToDirectorReview,
+    addComment, directorAction, setPlannedDate, updateDeadline,
+    toggleChecklistItem, addChecklistItem,
+  } = useApp();
   const { currentUser, users } = state;
   const [comment, setComment] = useState('');
   const [showTransfer, setShowTransfer] = useState(false);
   const [selectedUser, setSelectedUser] = useState('');
   const [returnNote, setReturnNote] = useState('');
   const [showReturn, setShowReturn] = useState(false);
+  const [showPlannedDate, setShowPlannedDate] = useState(false);
+  const [newPlannedDate, setNewPlannedDate] = useState(task.plannedDate ?? '');
+  const [showDeadline, setShowDeadline] = useState(false);
+  const [newDeadline, setNewDeadline] = useState(task.deadline.slice(0, 10));
+  const [newCheckItem, setNewCheckItem] = useState('');
+  const [activeTab, setActiveTab] = useState<'info' | 'comments' | 'history' | 'checklist'>('info');
 
   if (!currentUser) return null;
 
@@ -27,7 +37,8 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
 
   const isDirector = currentUser.role === 'director';
   const isAssignee = task.assignedTo === currentUser.id;
-  const canAct = isAssignee || isDirector;
+  const isTransferredToMe = task.transferredTo === currentUser.id && task.status === 'transferred';
+  const canAct = isAssignee || isDirector || isTransferredToMe;
 
   const otherUsers = users.filter(u => u.id !== currentUser.id);
 
@@ -45,9 +56,28 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   }
 
   function handleDirectorReturn() {
+    if (!returnNote.trim()) return;
     directorAction(task.id, 'return', returnNote);
     setShowReturn(false);
     onClose();
+  }
+
+  function handlePlannedDate() {
+    if (!newPlannedDate) return;
+    setPlannedDate(task.id, newPlannedDate);
+    setShowPlannedDate(false);
+  }
+
+  function handleDeadlineUpdate() {
+    if (!newDeadline) return;
+    updateDeadline(task.id, newDeadline + 'T23:59:59.000Z');
+    setShowDeadline(false);
+  }
+
+  function handleAddCheckItem() {
+    if (!newCheckItem.trim()) return;
+    addChecklistItem(task.id, newCheckItem.trim());
+    setNewCheckItem('');
   }
 
   const actions: { label: string; onClick: () => void; color?: string; show: boolean }[] = [
@@ -58,26 +88,32 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
       color: '#10B981',
     },
     {
-      label: '▶️ Начать работу',
-      show: canAct && task.status === 'accepted',
+      label: '▶️ Взять в работу',
+      show: canAct && (task.status === 'accepted' || task.status === 'returned_for_revision'),
       onClick: () => { updateStatus(task.id, 'in_progress'); onClose(); },
       color: '#4A90D9',
     },
     {
       label: '📤 Передать',
-      show: (isAssignee || isDirector) && !['completed', 'closed', 'pending_director_review'].includes(task.status),
+      show: (isAssignee || isDirector || isTransferredToMe) && !['completed', 'closed', 'pending_director_review'].includes(task.status),
       onClick: () => setShowTransfer(true),
       color: '#7C3AED',
     },
     {
+      label: '⏳ Жду ответа',
+      show: (isAssignee || isTransferredToMe) && ['in_progress', 'accepted'].includes(task.status),
+      onClick: () => { updateStatus(task.id, 'waiting_response'); onClose(); },
+      color: '#F97316',
+    },
+    {
       label: '🔍 На проверку директору',
-      show: isAssignee && task.status === 'in_progress' && !isDirector,
+      show: (isAssignee || isTransferredToMe) && ['in_progress', 'accepted', 'returned_for_revision'].includes(task.status) && !isDirector,
       onClick: () => { sendToDirectorReview(task.id); onClose(); },
       color: '#D97706',
     },
     {
       label: '🏁 Выполнено',
-      show: canAct && ['in_progress', 'accepted'].includes(task.status),
+      show: canAct && ['in_progress', 'accepted', 'returned_for_revision'].includes(task.status),
       onClick: () => { updateStatus(task.id, 'completed'); onClose(); },
       color: '#059669',
     },
@@ -105,19 +141,41 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
       onClick: () => { updateStatus(task.id, 'closed'); onClose(); },
       color: '#374151',
     },
+    {
+      label: '📅 Запланировать дату',
+      show: canAct && !['completed', 'closed'].includes(task.status),
+      onClick: () => setShowPlannedDate(true),
+      color: '#0891B2',
+    },
+    {
+      label: '📆 Изменить дедлайн',
+      show: isDirector && !['completed', 'closed'].includes(task.status),
+      onClick: () => setShowDeadline(true),
+      color: '#6366F1',
+    },
   ];
+
+  const tabStyle = (tab: typeof activeTab): React.CSSProperties => ({
+    padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+    borderBottom: activeTab === tab ? '2px solid #4A90D9' : '2px solid transparent',
+    color: activeTab === tab ? '#4A90D9' : '#666', background: 'none',
+  });
+
+  const checklist = task.checklist ?? [];
+  const doneCount = checklist.filter(i => i.done).length;
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{
-        background: '#fff', borderRadius: 16, width: '100%', maxWidth: 720,
-        maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+        background: '#fff', borderRadius: 16, width: '100%', maxWidth: 760,
+        maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
-        <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid #F0F0F0' }}>
+        <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid #F0F0F0', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
@@ -127,6 +185,11 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                 <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 9px', borderRadius: 6, background: `${pc}20`, color: pc }}>
                   {PRIORITY_LABELS[task.priority]}
                 </span>
+                {task.plannedDate && (
+                  <span style={{ fontSize: 12, fontWeight: 500, padding: '3px 9px', borderRadius: 6, background: '#E0F2FE', color: '#0369A1' }}>
+                    📅 Запланировано: {new Date(task.plannedDate).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit' })}
+                  </span>
+                )}
               </div>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{task.title}</h2>
             </div>
@@ -134,159 +197,259 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
           </div>
         </div>
 
-        <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Description */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Описание</div>
-            <div style={{ fontSize: 14, color: '#333', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{task.description}</div>
-          </div>
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid #F0F0F0', padding: '0 28px', flexShrink: 0 }}>
+          <button style={tabStyle('info')} onClick={() => setActiveTab('info')}>Информация</button>
+          <button style={tabStyle('comments')} onClick={() => setActiveTab('comments')}>
+            Комментарии {task.comments.length > 0 && `(${task.comments.length})`}
+          </button>
+          <button style={tabStyle('checklist')} onClick={() => setActiveTab('checklist')}>
+            Чек-лист {checklist.length > 0 && `(${doneCount}/${checklist.length})`}
+          </button>
+          <button style={tabStyle('history')} onClick={() => setActiveTab('history')}>История</button>
+        </div>
 
-          {/* Meta */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-            {[
-              { label: 'Исполнитель', value: assignee?.name ?? '—' },
-              { label: 'Создал', value: creator?.name ?? '—' },
-              { label: 'Срок', value: formatDate(task.deadline) },
-              { label: 'Создана', value: formatDate(task.createdAt) },
-              ...(transferredToUser ? [{ label: 'Передана', value: transferredToUser.name }] : []),
-            ].map(m => (
-              <div key={m.label} style={{ background: '#FAFAF8', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontSize: 11, color: '#888', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{m.label}</div>
-                <div style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{m.value}</div>
+        <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 18, flex: 1, overflowY: 'auto' }}>
+
+          {/* INFO TAB */}
+          {activeTab === 'info' && (
+            <>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Описание</div>
+                <div style={{ fontSize: 14, color: '#333', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{task.description}</div>
               </div>
-            ))}
-          </div>
 
-          {/* Actions */}
-          {actions.filter(a => a.show).length > 0 && (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Действия</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {actions.filter(a => a.show).map(a => (
-                  <button key={a.label} onClick={a.onClick} style={{
-                    padding: '8px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                    background: a.color ?? '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600,
-                    transition: 'opacity 0.15s',
-                  }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                  >
-                    {a.label}
-                  </button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+                {[
+                  { label: 'Исполнитель', value: assignee?.name ?? '—' },
+                  { label: 'Постановщик', value: creator?.name ?? '—' },
+                  { label: 'Дедлайн', value: formatDate(task.deadline) },
+                  { label: 'Создана', value: formatDate(task.createdAt) },
+                  ...(task.plannedDate ? [{ label: 'Запланировано', value: new Date(task.plannedDate).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' }) }] : []),
+                  ...(transferredToUser ? [{ label: 'Передана', value: transferredToUser.name }] : []),
+                  ...(task.sentToDirectorAt ? [{ label: 'Отправлено директору', value: new Date(task.sentToDirectorAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk' }) }] : []),
+                ].map(m => (
+                  <div key={m.label} style={{ background: '#FAFAF8', borderRadius: 8, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 11, color: '#888', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{m.label}</div>
+                    <div style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{m.value}</div>
+                  </div>
                 ))}
               </div>
-            </div>
-          )}
 
-          {/* Transfer picker */}
-          {showTransfer && (
-            <div style={{ background: '#F8F8F8', borderRadius: 10, padding: 16, border: '1px solid #E8E8E8' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Выберите пользователя для передачи:</div>
-              <select
-                value={selectedUser}
-                onChange={e => setSelectedUser(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, marginBottom: 10 }}
-              >
-                <option value="">— выберите —</option>
-                {otherUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={handleTransfer} disabled={!selectedUser} style={{
-                  padding: '8px 16px', borderRadius: 8, border: 'none', cursor: selectedUser ? 'pointer' : 'not-allowed',
-                  background: '#7C3AED', color: '#fff', fontSize: 13, fontWeight: 600, opacity: selectedUser ? 1 : 0.5,
-                }}>Передать</button>
-                <button onClick={() => setShowTransfer(false)} style={{
-                  padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer',
-                  background: '#fff', fontSize: 13,
-                }}>Отмена</button>
-              </div>
-            </div>
-          )}
-
-          {/* Return for revision form */}
-          {showReturn && (
-            <div style={{ background: '#FFF5F5', borderRadius: 10, padding: 16, border: '1px solid #FECACA' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Причина возврата на доработку:</div>
-              <textarea
-                value={returnNote}
-                onChange={e => setReturnNote(e.target.value)}
-                placeholder="Укажите, что нужно исправить..."
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, minHeight: 80, resize: 'vertical', boxSizing: 'border-box' }}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button onClick={handleDirectorReturn} style={{
-                  padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  background: '#EF4444', color: '#fff', fontSize: 13, fontWeight: 600,
-                }}>Вернуть</button>
-                <button onClick={() => setShowReturn(false)} style={{
-                  padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer', background: '#fff', fontSize: 13,
-                }}>Отмена</button>
-              </div>
-            </div>
-          )}
-
-          {/* Comments */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
-              Комментарии ({task.comments.length})
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-              {task.comments.map(c => {
-                const author = users.find(u => u.id === c.authorId);
-                return (
-                  <div key={c.id} style={{ background: '#FAFAF8', borderRadius: 8, padding: '10px 14px', border: '1px solid #EBEBEB' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#444' }}>{author?.name ?? 'Неизвестно'}</span>
-                      <span style={{ fontSize: 11, color: '#aaa' }}>{new Date(c.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>{c.text}</div>
+              {/* Actions */}
+              {actions.filter(a => a.show).length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Действия</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {actions.filter(a => a.show).map(a => (
+                      <button key={a.label} onClick={a.onClick} style={{
+                        padding: '8px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                        background: a.color ?? '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600,
+                        transition: 'opacity 0.15s',
+                      }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-              {task.comments.length === 0 && <div style={{ fontSize: 13, color: '#aaa' }}>Комментариев пока нет</div>}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <textarea
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                placeholder="Написать комментарий..."
-                style={{
-                  flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0',
-                  fontSize: 13, resize: 'none', minHeight: 60, outline: 'none',
-                }}
-                onFocus={e => (e.target.style.borderColor = '#4A90D9')}
-                onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
-              />
-              <button onClick={handleComment} disabled={!comment.trim()} style={{
-                padding: '0 16px', borderRadius: 8, border: 'none', cursor: comment.trim() ? 'pointer' : 'not-allowed',
-                background: '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600,
-                opacity: comment.trim() ? 1 : 0.5, alignSelf: 'stretch',
-              }}>
-                Отправить
-              </button>
-            </div>
-          </div>
+                </div>
+              )}
 
-          {/* History */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
-              История
+              {/* Transfer picker */}
+              {showTransfer && (
+                <div style={{ background: '#F8F8F8', borderRadius: 10, padding: 16, border: '1px solid #E8E8E8' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Выберите пользователя для передачи:</div>
+                  <select
+                    value={selectedUser}
+                    onChange={e => setSelectedUser(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, marginBottom: 10 }}
+                  >
+                    <option value="">— выберите —</option>
+                    {otherUsers.map(u => <option key={u.id} value={u.id}>{u.name} {u.role === 'director' ? '(Директор)' : ''}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={handleTransfer} disabled={!selectedUser} style={{
+                      padding: '8px 16px', borderRadius: 8, border: 'none', cursor: selectedUser ? 'pointer' : 'not-allowed',
+                      background: '#7C3AED', color: '#fff', fontSize: 13, fontWeight: 600, opacity: selectedUser ? 1 : 0.5,
+                    }}>Передать</button>
+                    <button onClick={() => setShowTransfer(false)} style={{
+                      padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer', background: '#fff', fontSize: 13,
+                    }}>Отмена</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Return for revision form */}
+              {showReturn && (
+                <div style={{ background: '#FFF5F5', borderRadius: 10, padding: 16, border: '1px solid #FECACA' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Причина возврата на доработку (обязательно):</div>
+                  <textarea
+                    value={returnNote}
+                    onChange={e => setReturnNote(e.target.value)}
+                    placeholder="Укажите, что нужно исправить..."
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, minHeight: 80, resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button onClick={handleDirectorReturn} disabled={!returnNote.trim()} style={{
+                      padding: '8px 16px', borderRadius: 8, border: 'none',
+                      cursor: returnNote.trim() ? 'pointer' : 'not-allowed',
+                      background: '#EF4444', color: '#fff', fontSize: 13, fontWeight: 600,
+                      opacity: returnNote.trim() ? 1 : 0.5,
+                    }}>Вернуть</button>
+                    <button onClick={() => setShowReturn(false)} style={{
+                      padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer', background: '#fff', fontSize: 13,
+                    }}>Отмена</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Set planned date */}
+              {showPlannedDate && (
+                <div style={{ background: '#EFF6FF', borderRadius: 10, padding: 16, border: '1px solid #BFDBFE' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Дата планирования:</div>
+                  <input type="date" value={newPlannedDate} onChange={e => setNewPlannedDate(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, marginBottom: 10, display: 'block' }} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={handlePlannedDate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#0891B2', color: '#fff', fontSize: 13, fontWeight: 600 }}>Сохранить</button>
+                    <button onClick={() => setShowPlannedDate(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer', background: '#fff', fontSize: 13 }}>Отмена</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Update deadline */}
+              {showDeadline && (
+                <div style={{ background: '#F5F3FF', borderRadius: 10, padding: 16, border: '1px solid #DDD6FE' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Новый дедлайн:</div>
+                  <input type="date" value={newDeadline} onChange={e => setNewDeadline(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #DDD', fontSize: 13, marginBottom: 10, display: 'block' }} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={handleDeadlineUpdate} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: '#6366F1', color: '#fff', fontSize: 13, fontWeight: 600 }}>Сохранить</button>
+                    <button onClick={() => setShowDeadline(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #DDD', cursor: 'pointer', background: '#fff', fontSize: 13 }}>Отмена</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* COMMENTS TAB */}
+          {activeTab === 'comments' && (
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                {task.comments.map(c => {
+                  const author = users.find(u => u.id === c.authorId);
+                  const isMe = c.authorId === currentUser.id;
+                  return (
+                    <div key={c.id} style={{
+                      background: isMe ? '#EFF6FF' : '#FAFAF8', borderRadius: 8, padding: '10px 14px',
+                      border: `1px solid ${isMe ? '#BFDBFE' : '#EBEBEB'}`,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: isMe ? '#1D4ED8' : '#444' }}>
+                          {author?.name ?? 'Неизвестно'} {isMe ? '(Вы)' : ''}
+                        </span>
+                        <span style={{ fontSize: 11, color: '#aaa' }}>
+                          {new Date(c.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>{c.text}</div>
+                    </div>
+                  );
+                })}
+                {task.comments.length === 0 && <div style={{ fontSize: 13, color: '#aaa' }}>Комментариев пока нет</div>}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <textarea
+                  value={comment}
+                  onChange={e => setComment(e.target.value)}
+                  placeholder="Написать комментарий..."
+                  style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, resize: 'none', minHeight: 60, outline: 'none' }}
+                  onFocus={e => (e.target.style.borderColor = '#4A90D9')}
+                  onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+                />
+                <button onClick={handleComment} disabled={!comment.trim()} style={{
+                  padding: '0 16px', borderRadius: 8, border: 'none', cursor: comment.trim() ? 'pointer' : 'not-allowed',
+                  background: '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600, opacity: comment.trim() ? 1 : 0.5, alignSelf: 'stretch',
+                }}>
+                  Отправить
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* CHECKLIST TAB */}
+          {activeTab === 'checklist' && (
+            <div>
+              {checklist.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ height: 6, background: '#F0F0F0', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+                    <div style={{ height: '100%', borderRadius: 3, width: `${checklist.length > 0 ? Math.round((doneCount / checklist.length) * 100) : 0}%`, background: '#10B981', transition: 'width 0.3s' }} />
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{doneCount} из {checklist.length} выполнено</div>
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                {checklist.map(item => (
+                  <div key={item.id} onClick={() => toggleChecklistItem(task.id, item.id)} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                    borderRadius: 8, background: item.done ? '#F0FDF4' : '#FAFAF8',
+                    border: `1px solid ${item.done ? '#BBF7D0' : '#EBEBEB'}`,
+                    cursor: 'pointer',
+                  }}>
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 4, border: `2px solid ${item.done ? '#10B981' : '#DDD'}`,
+                      background: item.done ? '#10B981' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0, transition: 'all 0.15s',
+                    }}>
+                      {item.done && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1 }}>✓</span>}
+                    </div>
+                    <span style={{ fontSize: 13, color: item.done ? '#666' : '#222', textDecoration: item.done ? 'line-through' : 'none' }}>
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
+                {checklist.length === 0 && <div style={{ fontSize: 13, color: '#aaa' }}>Чек-лист пуст</div>}
+              </div>
+              {canAct && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={newCheckItem}
+                    onChange={e => setNewCheckItem(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddCheckItem()}
+                    placeholder="Добавить пункт..."
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, outline: 'none' }}
+                    onFocus={e => (e.target.style.borderColor = '#4A90D9')}
+                    onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+                  />
+                  <button onClick={handleAddCheckItem} disabled={!newCheckItem.trim()} style={{
+                    padding: '8px 14px', borderRadius: 8, border: 'none',
+                    cursor: newCheckItem.trim() ? 'pointer' : 'not-allowed',
+                    background: '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600,
+                    opacity: newCheckItem.trim() ? 1 : 0.5,
+                  }}>+ Добавить</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* HISTORY TAB */}
+          {activeTab === 'history' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[...task.history].reverse().map(h => {
                 const actor = users.find(u => u.id === h.actorId);
                 return (
-                  <div key={h.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12, color: '#666' }}>
-                    <span style={{ color: '#aaa', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {new Date(h.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  <div key={h.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', borderRadius: 8, background: '#FAFAF8' }}>
+                    <span style={{ color: '#aaa', whiteSpace: 'nowrap', flexShrink: 0, fontSize: 12 }}>
+                      {new Date(h.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <span style={{ fontWeight: 500, color: '#555', flexShrink: 0 }}>{actor?.name ?? h.actorId}</span>
-                    <span>— {h.action}</span>
+                    <span style={{ fontWeight: 600, color: '#555', flexShrink: 0, fontSize: 12 }}>{actor?.name ?? h.actorId}</span>
+                    <span style={{ fontSize: 12, color: '#666' }}>— {h.action}</span>
                   </div>
                 );
               })}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
