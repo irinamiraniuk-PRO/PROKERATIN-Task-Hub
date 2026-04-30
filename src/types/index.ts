@@ -11,9 +11,38 @@ export type TaskStatus =
   | 'completed'
   | 'closed'
   | 'postponed'
-  | 'overdue';
+  | 'overdue'
+  | 'blocked';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export type TaskTag =
+  | 'сайт'
+  | 'закупка'
+  | 'бухгалтерия'
+  | 'контент'
+  | 'Instagram'
+  | 'Telegram'
+  | 'обучение'
+  | 'клиент'
+  | 'срочно'
+  | 'директор'
+  | 'личное'
+  | 'дизайн'
+  | 'разработка'
+  | 'акция недели';
+
+export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed';
+
+export type NotificationType =
+  | 'new_task'
+  | 'task_transferred'
+  | 'task_returned'
+  | 'task_closed'
+  | 'new_comment'
+  | 'mention';
+
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
 
 export interface User {
   id: string;
@@ -31,6 +60,7 @@ export interface Comment {
   authorId: string;
   text: string;
   createdAt: string;
+  mentions?: string[]; // user IDs mentioned via @
 }
 
 export interface HistoryEntry {
@@ -48,6 +78,44 @@ export interface ChecklistItem {
   id: string;
   text: string;
   done: boolean;
+  assignedTo?: string; // user ID
+}
+
+export interface Attachment {
+  id: string;
+  taskId: string;
+  name: string;
+  mimeType: string;
+  url: string; // base64 data URL for files, actual URL for links
+  uploadedBy: string;
+  uploadedAt: string;
+  size?: number; // bytes
+  isLink?: boolean;
+}
+
+export interface Notification {
+  id: string;
+  userId: string; // recipient
+  type: NotificationType;
+  taskId: string;
+  taskTitle: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  status: ProjectStatus;
+  ownerId: string;
+  memberIds: string[];
+  deadline: string; // ISO
+  createdAt: string; // ISO
+  color: string;
+  taskIds: string[]; // linked task IDs
 }
 
 export interface Task {
@@ -61,16 +129,27 @@ export interface Task {
   plannedDate?: string;
   priority: TaskPriority;
   status: TaskStatus;
+  tags?: TaskTag[];
   comments: Comment[];
   history: HistoryEntry[];
   checklist?: ChecklistItem[];
+  attachments?: Attachment[];
   transferredTo?: string;
   transferredFrom?: string;
   sentToDirectorAt?: string;
+  recurrence?: RecurrenceType;
+  recurrenceCustomDays?: number;
+  parentRecurringId?: string; // ID of the original recurring task
+  reactionDeadline?: string; // ISO date — when a response/reaction is expected by
+  projectId?: string; // linked project ID
+  dependsOn?: string[]; // task IDs this task depends on (must complete first)
 }
 
 export interface AppState {
   currentUser: User | null;
   tasks: Task[];
   users: User[];
+  notifications: Notification[];
+  projects: Project[];
 }
+

@@ -14,6 +14,7 @@ import DirectorReviewQueue from './DirectorReviewQueue';
 import WeekPlanner from './WeekPlanner';
 import WaitingTasks from './WaitingTasks';
 import SettingsView from './SettingsView';
+import KanbanBoard from './KanbanBoard';
 import { useApp } from '../context/AppContext';
 
 export default function Layout() {
@@ -22,21 +23,38 @@ export default function Layout() {
   const [showCreate, setShowCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { currentUser } = state;
+  const { currentUser, tasks } = state;
   if (!currentUser) return null;
+
+  const isDirector = currentUser.role === 'director';
+
+  // All tasks visible to current user for kanban
+  const visibleTasks = isDirector
+    ? tasks
+    : tasks.filter(t =>
+        t.assignedTo === currentUser.id ||
+        t.createdBy === currentUser.id ||
+        t.transferredTo === currentUser.id
+      );
 
   function renderView() {
     switch (view) {
       case 'dashboard': return <Dashboard searchQuery={searchQuery} />;
-      case 'calendar-planner': return currentUser?.role === 'director' ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
       case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
+      case 'kanban': return (
+        <div style={{ padding: '20px 24px' }}>
+          <h1 style={{ margin: '0 0 14px', fontSize: 20, fontWeight: 700, color: '#111' }}>⬛ Канбан-доска</h1>
+          <KanbanBoard tasks={visibleTasks} searchQuery={searchQuery} />
+        </div>
+      );
       case 'my-tasks': return <MyTasks searchQuery={searchQuery} />;
       case 'incoming': return <IncomingTasks searchQuery={searchQuery} />;
       case 'outgoing': return <OutgoingTasks searchQuery={searchQuery} />;
       case 'waiting': return <WaitingTasks searchQuery={searchQuery} />;
       case 'pending-director': return <PendingDirectorReview searchQuery={searchQuery} />;
-      case 'director-review': return currentUser?.role === 'director' ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
-      case 'team': return currentUser?.role === 'director' ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'director-review': return isDirector ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
       case 'archive': return <Archive searchQuery={searchQuery} />;
       case 'settings': return <SettingsView />;
       default: return <Dashboard searchQuery={searchQuery} />;
@@ -54,7 +72,7 @@ export default function Layout() {
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto' }}>
+        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: view === 'kanban' ? 'hidden' : undefined }}>
           {renderView()}
         </main>
       </div>

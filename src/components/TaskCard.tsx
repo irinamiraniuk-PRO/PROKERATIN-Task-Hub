@@ -1,5 +1,6 @@
 import { useApp } from '../context/AppContext';
 import type { Task, TaskStatus, TaskPriority } from '../types';
+import { isStuck, isWaitingTooLong, isPendingReviewTooLong, isReactionOverdue } from '../utils/taskAlerts';
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
   new: 'Новая',
@@ -96,6 +97,11 @@ export default function TaskCard({ task, onClick, draggable, onDragStart }: Task
   const deadlineSoon = isDeadlineSoon(task.deadline);
   const overdue = isOverdue(task.deadline) && !['completed', 'closed'].includes(task.status);
 
+  const stuck = isStuck(task);
+  const waitingLong = isWaitingTooLong(task);
+  const pendingLong = isPendingReviewTooLong(task);
+  const reactionExpired = isReactionOverdue(task) && !['completed', 'closed'].includes(task.status);
+
   const lastComment = task.comments.length > 0 ? task.comments[task.comments.length - 1] : null;
   const lastCommentAuthor = lastComment ? state.users.find(u => u.id === lastComment.authorId) : null;
 
@@ -156,6 +162,45 @@ export default function TaskCard({ task, onClick, draggable, onDragStart }: Task
       {task.checklist && task.checklist.length > 0 && (
         <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
           ☑️ {task.checklist.filter(i => i.done).length}/{task.checklist.length} пунктов выполнено
+        </div>
+      )}
+
+      {task.tags && task.tags.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+          {task.tags.slice(0, 4).map(tag => (
+            <span key={tag} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: '#666', fontWeight: 600 }}>
+              #{tag}
+            </span>
+          ))}
+          {task.tags.length > 4 && (
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: '#999' }}>+{task.tags.length - 4}</span>
+          )}
+        </div>
+      )}
+
+      {/* Alert badges */}
+      {(stuck || waitingLong || pendingLong || reactionExpired) && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+          {stuck && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB' }}>
+              😴 Нет движения
+            </span>
+          )}
+          {waitingLong && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, background: '#FED7AA', color: '#C2410C' }}>
+              ⏳ Ждём {'>'}24 ч
+            </span>
+          )}
+          {pendingLong && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, background: '#FEF9C3', color: '#92400E' }}>
+              🔍 На проверке {'>'}2 дн
+            </span>
+          )}
+          {reactionExpired && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 8, background: '#FEE2E2', color: '#B91C1C' }}>
+              📩 Срок реакции истёк
+            </span>
+          )}
         </div>
       )}
     </div>

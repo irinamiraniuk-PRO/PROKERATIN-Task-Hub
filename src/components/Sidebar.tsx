@@ -4,6 +4,7 @@ export type View =
   | 'dashboard'
   | 'calendar-planner'
   | 'week-planner'
+  | 'kanban'
   | 'my-tasks'
   | 'incoming'
   | 'outgoing'
@@ -71,6 +72,7 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
       title: 'Планирование',
       items: [
         { id: 'week-planner', label: 'Планер недели', icon: '📅' },
+        { id: 'kanban', label: 'Канбан-доска', icon: '⬛' },
       ],
     },
     {
