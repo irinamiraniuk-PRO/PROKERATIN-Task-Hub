@@ -185,7 +185,13 @@ export default function AIAssistantModal({ task, onClose }: AIAssistantModalProp
         );
       }
       if (line.startsWith('• ')) {
-        return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 3 }}><span style={{ color: '#BE185D', fontWeight: 700 }}>•</span><span style={{ fontSize: 13, color: '#333', lineHeight: 1.5, flex: 1 }}>{rendered.slice(1)}</span></div>;
+        const bulletText = line.slice(2);
+        const bulletParts = bulletText.split(/(\*\*[^*]+\*\*)/g);
+        const bulletRendered = bulletParts.map((p, j) => {
+          if (p.startsWith('**') && p.endsWith('**')) return <strong key={j}>{p.slice(2, -2)}</strong>;
+          return <span key={j}>{p}</span>;
+        });
+        return <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 3 }}><span style={{ color: '#BE185D', fontWeight: 700 }}>•</span><span style={{ fontSize: 13, color: '#333', lineHeight: 1.5, flex: 1 }}>{bulletRendered}</span></div>;
       }
       if (line.trim() === '') return <div key={i} style={{ height: 8 }} />;
       return <p key={i} style={{ margin: '0 0 4px', fontSize: 13, color: '#333', lineHeight: 1.6 }}>{rendered}</p>;

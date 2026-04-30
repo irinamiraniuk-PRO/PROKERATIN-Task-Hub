@@ -299,7 +299,7 @@ export default function OnboardingView() {
                 {step.tasks.map((task, i) => {
                   const isCheckbox = task.startsWith('☐ ');
                   const isWarning = task.startsWith('⚠️') || task.startsWith('❌');
-                  const isInfo = task.startsWith('ℹ️') || task.startsWith('✅') || task.startsWith('✅');
+                  const isInfo = task.startsWith('ℹ️') || task.startsWith('✅');
                   return (
                     <div key={i} style={{
                       padding: '10px 14px', borderRadius: 8,
