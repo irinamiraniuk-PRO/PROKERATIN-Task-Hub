@@ -2,7 +2,7 @@ import { createContext, useContext, useReducer, useEffect, type ReactNode } from
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
-  RecurrenceType, Project, ProjectStatus,
+  RecurrenceType, Project,
 } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { INITIAL_PROJECTS } from '../data/initialProjects';
@@ -586,6 +586,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'MARK_ALL_READ', userId: state.currentUser.id });
   }
 
+  function updateTaskProject(taskId: string, projectId: string | undefined) {
+    dispatch({ type: 'UPDATE_TASK_PROJECT', taskId, projectId });
+  }
+
+  function updateTaskDeps(taskId: string, dependsOn: string[]) {
+    dispatch({ type: 'UPDATE_TASK_DEPS', taskId, dependsOn });
+  }
+
+  function createProject(data: Omit<Project, 'id' | 'createdAt' | 'taskIds'>) {
+    const project: Project = { ...data, id: uid(), createdAt: new Date().toISOString(), taskIds: [] };
+    dispatch({ type: 'CREATE_PROJECT', project });
+  }
+
+  function updateProject(projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) {
+    dispatch({ type: 'UPDATE_PROJECT', projectId, patch });
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
@@ -593,6 +610,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setPlannedDate, moveTaskToDay, updateDeadline, toggleChecklistItem, addChecklistItem,
       updateChecklistItemAssignee, updateTaskTags, kanbanMove,
       addAttachment, markNotificationRead, markAllRead,
+      updateTaskProject, updateTaskDeps, createProject, updateProject,
     }}>
       {children}
     </AppContext.Provider>
