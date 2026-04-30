@@ -4,6 +4,7 @@ import type { Task, TaskTag, User } from '../types';
 import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from './TaskCard';
 import { ALL_TAGS } from '../data/taskTags';
 import { isStuck, isWaitingTooLong, isPendingReviewTooLong, isReactionOverdue, lastActivityDate, hoursSince } from '../utils/taskAlerts';
+import AIAssistantModal from './AIAssistantModal';
 
 interface TaskModalProps {
   task: Task;
@@ -91,6 +92,8 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const [fileError, setFileError] = useState('');
   // Checklist assignee picker: itemId being edited
   const [assigneePickerItemId, setAssigneePickerItemId] = useState<string | null>(null);
+  // AI Assistant
+  const [showAI, setShowAI] = useState(false);
 
   if (!currentUser) return null;
 
@@ -315,7 +318,25 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
               </div>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{task.title}</h2>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', flexShrink: 0 }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={() => setShowAI(true)}
+                style={{
+                  padding: '7px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #7C3AED, #BE185D)',
+                  color: '#fff', fontSize: 12, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  whiteSpace: 'nowrap', transition: 'opacity 0.15s',
+                  boxShadow: '0 2px 8px rgba(124,58,237,0.3)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                title="AI-помощник"
+              >
+                🤖 Помочь с задачей
+              </button>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', flexShrink: 0 }}>✕</button>
+            </div>
           </div>
         </div>
 
@@ -897,6 +918,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
           )}
         </div>
       </div>
+      {showAI && <AIAssistantModal task={task} onClose={() => setShowAI(false)} />}
     </div>
   );
 }
