@@ -15,6 +15,8 @@ import WeekPlanner from './WeekPlanner';
 import WaitingTasks from './WaitingTasks';
 import SettingsView from './SettingsView';
 import KanbanBoard from './KanbanBoard';
+import KnowledgeBase from './KnowledgeBase';
+import OnboardingView from './OnboardingView';
 import { useApp } from '../context/AppContext';
 
 export default function Layout() {
@@ -57,6 +59,8 @@ export default function Layout() {
       case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
       case 'archive': return <Archive searchQuery={searchQuery} />;
       case 'settings': return <SettingsView />;
+      case 'knowledge-base': return <KnowledgeBase />;
+      case 'onboarding': return <OnboardingView />;
       default: return <Dashboard searchQuery={searchQuery} />;
     }
   }
