@@ -66,7 +66,8 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const {
     state, updateStatus, transferTask, sendToDirectorReview,
     addComment, directorAction, setPlannedDate, updateDeadline,
-    toggleChecklistItem, addChecklistItem, updateTaskTags, addAttachment,
+    toggleChecklistItem, addChecklistItem, updateChecklistItemAssignee,
+    updateTaskTags, addAttachment,
   } = useApp();
   const { currentUser, users } = state;
   const [comment, setComment] = useState('');
@@ -87,6 +88,8 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const [linkName, setLinkName] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [fileError, setFileError] = useState('');
+  // Checklist assignee picker: itemId being edited
+  const [assigneePickerItemId, setAssigneePickerItemId] = useState<string | null>(null);
 
   if (!currentUser) return null;
 
@@ -303,6 +306,11 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                     #{tag}
                   </span>
                 ))}
+                {task.recurrence && task.recurrence !== 'none' && (
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 10, background: '#FEF3C7', color: '#92400E' }}>
+                    🔁 {task.recurrence === 'daily' ? 'Каждый день' : task.recurrence === 'weekly' ? 'Каждую неделю' : task.recurrence === 'monthly' ? 'Каждый месяц' : `Каждые ${task.recurrenceCustomDays ?? 7} дн.`}
+                  </span>
+                )}
               </div>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{task.title}</h2>
             </div>
@@ -586,32 +594,123 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
             <div>
               {checklist.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ height: 6, background: '#F0F0F0', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
-                    <div style={{ height: '100%', borderRadius: 3, width: `${checklist.length > 0 ? Math.round((doneCount / checklist.length) * 100) : 0}%`, background: '#10B981', transition: 'width 0.3s' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: '#666', fontWeight: 600 }}>
+                      {doneCount} из {checklist.length} выполнено
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: doneCount === checklist.length ? '#10B981' : userColor }}>
+                      {checklist.length > 0 ? Math.round((doneCount / checklist.length) * 100) : 0}%
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#666' }}>{doneCount} из {checklist.length} выполнено</div>
+                  <div style={{ height: 6, background: '#F0F0F0', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 3, width: `${checklist.length > 0 ? Math.round((doneCount / checklist.length) * 100) : 0}%`, background: doneCount === checklist.length ? '#10B981' : userColor, transition: 'width 0.3s' }} />
+                  </div>
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-                {checklist.map(item => (
-                  <div key={item.id} onClick={() => toggleChecklistItem(task.id, item.id)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-                    borderRadius: 8, background: item.done ? '#F0FDF4' : '#FAFAF8',
-                    border: `1px solid ${item.done ? '#BBF7D0' : '#EBEBEB'}`,
-                    cursor: 'pointer',
-                  }}>
-                    <div style={{
-                      width: 18, height: 18, borderRadius: 4, border: `2px solid ${item.done ? '#10B981' : '#DDD'}`,
-                      background: item.done ? '#10B981' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0, transition: 'all 0.15s',
-                    }}>
-                      {item.done && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1 }}>✓</span>}
+                {checklist.map(item => {
+                  const itemAssignee = item.assignedTo ? users.find(u => u.id === item.assignedTo) : null;
+                  const isPickingAssignee = assigneePickerItemId === item.id;
+                  return (
+                    <div key={item.id}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                        borderRadius: 8, background: item.done ? '#F0FDF4' : '#FAFAF8',
+                        border: `1px solid ${item.done ? '#BBF7D0' : '#EBEBEB'}`,
+                      }}>
+                        {/* Checkbox */}
+                        <div
+                          onClick={() => toggleChecklistItem(task.id, item.id)}
+                          style={{
+                            width: 18, height: 18, borderRadius: 4, border: `2px solid ${item.done ? '#10B981' : '#DDD'}`,
+                            background: item.done ? '#10B981' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0, transition: 'all 0.15s', cursor: 'pointer',
+                          }}
+                        >
+                          {item.done && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1 }}>✓</span>}
+                        </div>
+                        {/* Text */}
+                        <span
+                          onClick={() => toggleChecklistItem(task.id, item.id)}
+                          style={{ flex: 1, fontSize: 13, color: item.done ? '#666' : '#222', textDecoration: item.done ? 'line-through' : 'none', cursor: 'pointer' }}
+                        >
+                          {item.text}
+                        </span>
+                        {/* Assignee avatar / assign button */}
+                        {itemAssignee ? (
+                          <button
+                            onClick={() => setAssigneePickerItemId(isPickingAssignee ? null : item.id)}
+                            title={`Исполнитель: ${itemAssignee.name}`}
+                            style={{
+                              width: 22, height: 22, borderRadius: '50%',
+                              background: itemAssignee.color ?? '#888', color: '#fff',
+                              fontSize: 9, fontWeight: 800, border: 'none', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {itemAssignee.name[0]}
+                          </button>
+                        ) : canAct ? (
+                          <button
+                            onClick={() => setAssigneePickerItemId(isPickingAssignee ? null : item.id)}
+                            title="Назначить исполнителя"
+                            style={{
+                              width: 22, height: 22, borderRadius: '50%',
+                              background: '#F3F4F6', color: '#888',
+                              fontSize: 12, border: '1px dashed #CCC', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            👤
+                          </button>
+                        ) : null}
+                      </div>
+                      {/* Assignee picker dropdown */}
+                      {isPickingAssignee && (
+                        <div style={{
+                          marginTop: 2, marginLeft: 40, background: '#fff', borderRadius: 8,
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.1)', border: '1px solid #E0E0E0',
+                          overflow: 'hidden', zIndex: 10,
+                        }}>
+                          <div
+                            onClick={() => { updateChecklistItemAssignee(task.id, item.id, undefined); setAssigneePickerItemId(null); }}
+                            style={{ padding: '8px 12px', fontSize: 12, color: '#888', cursor: 'pointer', borderBottom: '1px solid #F0F0F0' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#FEF2F2')}
+                            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                          >
+                            Без исполнителя
+                          </div>
+                          {users.map(u => (
+                            <div
+                              key={u.id}
+                              onClick={() => { updateChecklistItemAssignee(task.id, item.id, u.id); setAssigneePickerItemId(null); }}
+                              style={{
+                                padding: '8px 12px', fontSize: 13, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                background: item.assignedTo === u.id ? '#EFF6FF' : '#fff',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.background = '#F0F9FF')}
+                              onMouseLeave={e => (e.currentTarget.style.background = item.assignedTo === u.id ? '#EFF6FF' : '#fff')}
+                            >
+                              <div style={{
+                                width: 22, height: 22, borderRadius: '50%',
+                                background: u.color ?? '#888', color: '#fff',
+                                fontSize: 9, fontWeight: 800,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                              }}>
+                                {u.name[0]}
+                              </div>
+                              <span style={{ fontWeight: item.assignedTo === u.id ? 700 : 400 }}>{u.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span style={{ fontSize: 13, color: item.done ? '#666' : '#222', textDecoration: item.done ? 'line-through' : 'none' }}>
-                      {item.text}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
                 {checklist.length === 0 && <div style={{ fontSize: 13, color: '#aaa' }}>Чек-лист пуст</div>}
               </div>
               {canAct && (

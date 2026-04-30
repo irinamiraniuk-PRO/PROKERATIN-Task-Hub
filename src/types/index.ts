@@ -39,6 +39,8 @@ export type NotificationType =
   | 'new_comment'
   | 'mention';
 
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'custom';
+
 export interface User {
   id: string;
   name: string;
@@ -73,6 +75,7 @@ export interface ChecklistItem {
   id: string;
   text: string;
   done: boolean;
+  assignedTo?: string; // user ID
 }
 
 export interface Attachment {
@@ -117,6 +120,9 @@ export interface Task {
   transferredTo?: string;
   transferredFrom?: string;
   sentToDirectorAt?: string;
+  recurrence?: RecurrenceType;
+  recurrenceCustomDays?: number;
+  parentRecurringId?: string; // ID of the original recurring task
 }
 
 export interface AppState {
@@ -125,3 +131,4 @@ export interface AppState {
   users: User[];
   notifications: Notification[];
 }
+

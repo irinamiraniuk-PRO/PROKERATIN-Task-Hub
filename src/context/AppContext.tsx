@@ -2,25 +2,27 @@ import { createContext, useContext, useReducer, useEffect, type ReactNode } from
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
+  RecurrenceType,
 } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v4';
+const LS_KEY = 'prokeratin_state_v5';
 
 type Action =
   | { type: 'LOGIN'; user: User }
   | { type: 'LOGOUT' }
   | { type: 'CREATE_TASK'; task: Task; notifications: Notification[] }
-  | { type: 'UPDATE_STATUS'; taskId: string; status: TaskStatus; actorId: string; meta?: string }
+  | { type: 'UPDATE_STATUS'; taskId: string; status: TaskStatus; actorId: string; meta?: string; spawnedTask?: Task; spawnedNotifications?: Notification[] }
   | { type: 'TRANSFER_TASK'; taskId: string; toUserId: string; actorId: string; toUserName: string; notification?: Notification }
   | { type: 'ADD_COMMENT'; comment: Comment; taskId: string; actorId: string; notifications: Notification[] }
-  | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string; notification?: Notification }
+  | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string; notification?: Notification; spawnedTask?: Task; spawnedNotifications?: Notification[] }
   | { type: 'SET_PLANNED_DATE'; taskId: string; plannedDate: string }
   | { type: 'MOVE_TASK_TO_DAY'; taskId: string; plannedDate: string; actorId: string }
   | { type: 'UPDATE_DEADLINE'; taskId: string; deadline: string; actorId: string }
   | { type: 'TOGGLE_CHECKLIST_ITEM'; taskId: string; itemId: string }
   | { type: 'ADD_CHECKLIST_ITEM'; taskId: string; item: ChecklistItem }
+  | { type: 'UPDATE_CHECKLIST_ITEM_ASSIGNEE'; taskId: string; itemId: string; assignedTo: string | undefined }
   | { type: 'SEND_TO_DIRECTOR'; taskId: string; actorId: string }
   | { type: 'UPDATE_TASK_TAGS'; taskId: string; tags: TaskTag[] }
   | { type: 'KANBAN_MOVE'; taskId: string; status: TaskStatus; actorId: string }
@@ -57,6 +59,41 @@ function makeNotif(userId: string, type: NotificationType, taskId: string, taskT
   return { id: uid(), userId, type, taskId, taskTitle, message, createdAt: new Date().toISOString(), read: false };
 }
 
+function computeNextDeadline(deadline: string, recurrence: RecurrenceType, customDays?: number): string {
+  const d = new Date(deadline);
+  switch (recurrence) {
+    case 'daily': d.setDate(d.getDate() + 1); break;
+    case 'weekly': d.setDate(d.getDate() + 7); break;
+    case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'custom': d.setDate(d.getDate() + (customDays ?? 7)); break;
+    default: break;
+  }
+  return d.toISOString();
+}
+
+function spawnRecurringTask(task: Task, actorId: string): Task {
+  const id = uid();
+  const nextDeadline = computeNextDeadline(task.deadline, task.recurrence!, task.recurrenceCustomDays);
+  return {
+    id,
+    title: task.title,
+    description: task.description,
+    createdBy: actorId,
+    assignedTo: task.assignedTo,
+    createdAt: new Date().toISOString(),
+    deadline: nextDeadline,
+    priority: task.priority,
+    status: 'new',
+    tags: task.tags,
+    comments: [],
+    history: [historyEntry(id, actorId, 'Задача создана (повторение)', undefined, 'new')],
+    recurrence: task.recurrence,
+    recurrenceCustomDays: task.recurrenceCustomDays,
+    parentRecurringId: task.parentRecurringId ?? task.id,
+    // Reset checklist (undone)
+    checklist: task.checklist?.map(item => ({ ...item, id: uid(), done: false })),
+  };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -76,7 +113,9 @@ function reducer(state: AppState, action: Action): AppState {
         const entry = historyEntry(t.id, action.actorId, statusActionLabel(action.status), t.status, action.status, action.meta);
         return { ...t, status: action.status, history: [...t.history, entry] };
       });
-      return { ...state, tasks };
+      const allTasks = action.spawnedTask ? [action.spawnedTask, ...tasks] : tasks;
+      const notifications = [...state.notifications, ...(action.spawnedNotifications ?? [])];
+      return { ...state, tasks: allTasks, notifications };
     }
     case 'SEND_TO_DIRECTOR': {
       const tasks = state.tasks.map(t => {
@@ -121,10 +160,14 @@ function reducer(state: AppState, action: Action): AppState {
           return { ...t, status: 'returned_for_revision' as TaskStatus, history: [...t.history, entry] };
         }
       });
-      const notifications = action.notification
+      const baseTasks = action.spawnedTask ? [action.spawnedTask, ...tasks] : tasks;
+      const baseNotifications = action.notification
         ? [...state.notifications, action.notification]
         : state.notifications;
-      return { ...state, tasks, notifications };
+      const notifications = action.spawnedNotifications
+        ? [...baseNotifications, ...action.spawnedNotifications]
+        : baseNotifications;
+      return { ...state, tasks: baseTasks, notifications };
     }
     case 'SET_PLANNED_DATE': {
       const tasks = state.tasks.map(t => {
@@ -169,6 +212,16 @@ function reducer(state: AppState, action: Action): AppState {
       const tasks = state.tasks.map(t => {
         if (t.id !== action.taskId) return t;
         const checklist = [...(t.checklist ?? []), action.item];
+        return { ...t, checklist };
+      });
+      return { ...state, tasks };
+    }
+    case 'UPDATE_CHECKLIST_ITEM_ASSIGNEE': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const checklist = (t.checklist ?? []).map(item =>
+          item.id === action.itemId ? { ...item, assignedTo: action.assignedTo } : item
+        );
         return { ...t, checklist };
       });
       return { ...state, tasks };
@@ -255,6 +308,7 @@ interface AppContextValue {
   createTask: (data: {
     title: string; description: string; assignedTo: string;
     deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
+    checklist?: string[]; recurrence?: RecurrenceType; recurrenceCustomDays?: number;
   }) => void;
   updateStatus: (taskId: string, status: TaskStatus, meta?: string) => void;
   transferTask: (taskId: string, toUserId: string) => void;
@@ -266,6 +320,7 @@ interface AppContextValue {
   updateDeadline: (taskId: string, deadline: string) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
   addChecklistItem: (taskId: string, text: string) => void;
+  updateChecklistItemAssignee: (taskId: string, itemId: string, assignedTo: string | undefined) => void;
   updateTaskTags: (taskId: string, tags: TaskTag[]) => void;
   kanbanMove: (taskId: string, status: TaskStatus) => void;
   addAttachment: (taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) => void;
@@ -293,10 +348,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   function createTask(data: {
     title: string; description: string; assignedTo: string;
     deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
+    checklist?: string[]; recurrence?: RecurrenceType; recurrenceCustomDays?: number;
   }) {
     if (!state.currentUser) return;
     const id = uid();
     const nowTs = new Date().toISOString();
+    const checklist: ChecklistItem[] | undefined = data.checklist && data.checklist.length > 0
+      ? data.checklist.map(text => ({ id: uid(), text, done: false }))
+      : undefined;
     const task: Task = {
       id,
       title: data.title,
@@ -311,6 +370,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: 'new',
       comments: [],
       history: [historyEntry(id, state.currentUser.id, 'Задача создана', undefined, 'new')],
+      checklist,
+      recurrence: data.recurrence !== 'none' ? data.recurrence : undefined,
+      recurrenceCustomDays: data.recurrenceCustomDays,
     };
     const notifications: Notification[] = [];
     if (data.assignedTo !== state.currentUser.id) {
@@ -324,7 +386,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function updateStatus(taskId: string, status: TaskStatus, meta?: string) {
     if (!state.currentUser) return;
-    dispatch({ type: 'UPDATE_STATUS', taskId, status, actorId: state.currentUser.id, meta });
+    const task = state.tasks.find(t => t.id === taskId);
+    let spawnedTask: Task | undefined;
+    let spawnedNotifications: Notification[] | undefined;
+    if (task && (status === 'completed' || status === 'closed') && task.recurrence && task.recurrence !== 'none') {
+      spawnedTask = spawnRecurringTask(task, state.currentUser.id);
+      spawnedNotifications = [];
+      if (spawnedTask.assignedTo !== state.currentUser.id) {
+        spawnedNotifications.push(makeNotif(
+          spawnedTask.assignedTo, 'new_task', spawnedTask.id, spawnedTask.title,
+          `Создана повторяющаяся задача: «${spawnedTask.title}»`
+        ));
+      }
+    }
+    dispatch({ type: 'UPDATE_STATUS', taskId, status, actorId: state.currentUser.id, meta, spawnedTask, spawnedNotifications });
   }
 
   function transferTask(taskId: string, toUserId: string) {
@@ -379,12 +454,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!state.currentUser) return;
     const task = state.tasks.find(t => t.id === taskId);
     let notification: Notification | undefined;
+    let spawnedTask: Task | undefined;
+    let spawnedNotifications: Notification[] | undefined;
     if (task) {
       if (action === 'approve') {
         notification = makeNotif(
           task.assignedTo, 'task_closed', taskId, task.title,
           `Директор закрыл задачу: «${task.title}»`
         );
+        if (task.recurrence && task.recurrence !== 'none') {
+          spawnedTask = spawnRecurringTask(task, state.currentUser.id);
+          spawnedNotifications = [];
+          if (spawnedTask.assignedTo !== state.currentUser.id) {
+            spawnedNotifications.push(makeNotif(
+              spawnedTask.assignedTo, 'new_task', spawnedTask.id, spawnedTask.title,
+              `Создана повторяющаяся задача: «${spawnedTask.title}»`
+            ));
+          }
+        }
       } else {
         notification = makeNotif(
           task.assignedTo, 'task_returned', taskId, task.title,
@@ -392,7 +479,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
       }
     }
-    dispatch({ type: 'DIRECTOR_ACTION', taskId, action, actorId: state.currentUser.id, note, notification });
+    dispatch({ type: 'DIRECTOR_ACTION', taskId, action, actorId: state.currentUser.id, note, notification, spawnedTask, spawnedNotifications });
   }
 
   function setPlannedDate(taskId: string, plannedDate: string) {
@@ -416,6 +503,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   function addChecklistItem(taskId: string, text: string) {
     const item: ChecklistItem = { id: uid(), text, done: false };
     dispatch({ type: 'ADD_CHECKLIST_ITEM', taskId, item });
+  }
+
+  function updateChecklistItemAssignee(taskId: string, itemId: string, assignedTo: string | undefined) {
+    dispatch({ type: 'UPDATE_CHECKLIST_ITEM_ASSIGNEE', taskId, itemId, assignedTo });
   }
 
   function updateTaskTags(taskId: string, tags: TaskTag[]) {
@@ -453,7 +544,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state, login, logout, createTask, updateStatus, transferTask,
       sendToDirectorReview, addComment, directorAction,
       setPlannedDate, moveTaskToDay, updateDeadline, toggleChecklistItem, addChecklistItem,
-      updateTaskTags, kanbanMove, addAttachment, markNotificationRead, markAllRead,
+      updateChecklistItemAssignee, updateTaskTags, kanbanMove,
+      addAttachment, markNotificationRead, markAllRead,
     }}>
       {children}
     </AppContext.Provider>
