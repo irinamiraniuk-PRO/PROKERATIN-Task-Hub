@@ -7,7 +7,7 @@ import type {
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v5';
+const LS_KEY = 'prokeratin_state_v6';
 
 type Action =
   | { type: 'LOGIN'; user: User }
@@ -309,6 +309,7 @@ interface AppContextValue {
     title: string; description: string; assignedTo: string;
     deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
     checklist?: string[]; recurrence?: RecurrenceType; recurrenceCustomDays?: number;
+    reactionDeadline?: string;
   }) => void;
   updateStatus: (taskId: string, status: TaskStatus, meta?: string) => void;
   transferTask: (taskId: string, toUserId: string) => void;
@@ -349,11 +350,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     title: string; description: string; assignedTo: string;
     deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
     checklist?: string[]; recurrence?: RecurrenceType; recurrenceCustomDays?: number;
+    reactionDeadline?: string;
   }) {
     if (!state.currentUser) return;
     const id = uid();
     const nowTs = new Date().toISOString();
-    const checklist: ChecklistItem[] | undefined = data.checklist && data.checklist.length > 0
+    const checklist: ChecklistItem[] | undefined = data.checklist?.length
       ? data.checklist.map(text => ({ id: uid(), text, done: false }))
       : undefined;
     const task: Task = {
@@ -373,6 +375,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       checklist,
       recurrence: data.recurrence !== 'none' ? data.recurrence : undefined,
       recurrenceCustomDays: data.recurrenceCustomDays,
+      reactionDeadline: data.reactionDeadline,
     };
     const notifications: Notification[] = [];
     if (data.assignedTo !== state.currentUser.id) {

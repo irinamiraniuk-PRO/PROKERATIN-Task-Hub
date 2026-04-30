@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import type { Task, TaskTag, User } from '../types';
 import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from './TaskCard';
 import { ALL_TAGS } from '../data/taskTags';
+import { isStuck, isWaitingTooLong, isPendingReviewTooLong, isReactionOverdue, lastActivityDate, hoursSince } from '../utils/taskAlerts';
 
 interface TaskModalProps {
   task: Task;
@@ -349,6 +350,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                   { label: 'Постановщик', value: creator?.name ?? '—' },
                   { label: 'Дедлайн', value: formatDate(task.deadline) },
                   { label: 'Создана', value: formatDate(task.createdAt) },
+                  ...(task.reactionDeadline ? [{ label: '📩 Срок реакции', value: new Date(task.reactionDeadline) <= new Date() ? `⚠️ ${new Date(task.reactionDeadline).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit' })} (истёк)` : new Date(task.reactionDeadline).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' }) }] : []),
                   ...(task.plannedDate ? [{ label: 'Запланировано', value: new Date(task.plannedDate).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' }) }] : []),
                   ...(transferredToUser ? [{ label: 'Передана', value: transferredToUser.name }] : []),
                   ...(task.sentToDirectorAt ? [{ label: 'Отправлено директору', value: new Date(task.sentToDirectorAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk' }) }] : []),
@@ -359,6 +361,36 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                   </div>
                 ))}
               </div>
+
+              {/* Alert banners */}
+              {(() => {
+                const stuck = isStuck(task);
+                const waitingLong = isWaitingTooLong(task);
+                const pendingLong = isPendingReviewTooLong(task);
+                const reactionExpired = isReactionOverdue(task) && !['completed', 'closed'].includes(task.status);
+                const lastAct = lastActivityDate(task);
+                const hoursAgo = Math.floor(hoursSince(lastAct));
+                const alerts: { bg: string; border: string; color: string; icon: string; text: string }[] = [];
+                if (stuck) alerts.push({ bg: '#F9FAFB', border: '#E5E7EB', color: '#6B7280', icon: '😴', text: `Нет движения ${hoursAgo >= 72 ? `${Math.floor(hoursAgo / 24)} дн.` : `${hoursAgo} ч.`} — задача зависла` });
+                if (waitingLong) alerts.push({ bg: '#FFF7ED', border: '#FDBA74', color: '#C2410C', icon: '⏳', text: 'Ждём ответ более 24 часов' });
+                if (pendingLong) {
+                  const since = task.sentToDirectorAt ? new Date(task.sentToDirectorAt) : lastAct;
+                  const days = Math.floor(hoursSince(since) / 24);
+                  alerts.push({ bg: '#FFFBEB', border: '#FDE68A', color: '#92400E', icon: '🔍', text: `На проверке директора уже ${days} ${days === 1 ? 'день' : 'дня'}` });
+                }
+                if (reactionExpired) alerts.push({ bg: '#FEF2F2', border: '#FECACA', color: '#B91C1C', icon: '📩', text: 'Срок реакции истёк' });
+                if (alerts.length === 0) return null;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {alerts.map((a, i) => (
+                      <div key={i} style={{ background: a.bg, border: `1px solid ${a.border}`, borderRadius: 8, padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>{a.icon}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: a.color }}>{a.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Tags */}
               <div>

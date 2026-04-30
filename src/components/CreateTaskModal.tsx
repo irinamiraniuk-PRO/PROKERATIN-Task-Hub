@@ -45,6 +45,8 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [newCheckItem, setNewCheckItem] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
   const [recurrenceCustomDays, setRecurrenceCustomDays] = useState(7);
+  const [reactionType, setReactionType] = useState<'none' | 'today' | '24h' | 'custom'>('none');
+  const [reactionCustomDate, setReactionCustomDate] = useState(today);
   const [error, setError] = useState('');
 
   function applyTemplate(templateId: string) {
@@ -83,6 +85,17 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
     if (!title.trim()) { setError('Введите название задачи'); return; }
     if (!assignedTo) { setError('Выберите исполнителя'); return; }
     if (!deadline) { setError('Укажите срок'); return; }
+
+    let reactionDeadline: string | undefined;
+    if (reactionType === 'today') {
+      const d = new Date(); d.setHours(23, 59, 59, 0);
+      reactionDeadline = d.toISOString();
+    } else if (reactionType === '24h') {
+      reactionDeadline = new Date(Date.now() + 86_400_000).toISOString();
+    } else if (reactionType === 'custom' && reactionCustomDate) {
+      reactionDeadline = reactionCustomDate + 'T23:59:59.000Z';
+    }
+
     createTask({
       title: title.trim(),
       description: description.trim(),
@@ -94,6 +107,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
       checklist: checklistItems.length > 0 ? checklistItems : undefined,
       recurrence,
       recurrenceCustomDays: recurrence === 'custom' ? recurrenceCustomDays : undefined,
+      reactionDeadline,
     });
     onClose();
   }
@@ -292,6 +306,44 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                   />
                   <span style={{ fontSize: 13, color: '#555' }}>дней</span>
                 </div>
+              )}
+            </div>
+
+            {/* Reaction deadline */}
+            <div>
+              <label style={labelStyle}>📩 Срок реакции</label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {([
+                  { value: 'none', label: 'Не указан' },
+                  { value: 'today', label: 'Сегодня' },
+                  { value: '24h', label: 'В течение 24 часов' },
+                  { value: 'custom', label: 'Конкретная дата' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setReactionType(opt.value)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      border: `1.5px solid ${reactionType === opt.value ? '#F97316' : '#E0E0E0'}`,
+                      background: reactionType === opt.value ? '#FFF7ED' : '#FAFAF8',
+                      color: reactionType === opt.value ? '#C2410C' : '#777',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {reactionType === 'custom' && (
+                <input
+                  type="date"
+                  value={reactionCustomDate}
+                  onChange={e => setReactionCustomDate(e.target.value)}
+                  style={{ ...inputStyle, marginTop: 8 }}
+                  onFocus={e => (e.target.style.borderColor = '#F97316')}
+                  onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+                />
               )}
             </div>
 

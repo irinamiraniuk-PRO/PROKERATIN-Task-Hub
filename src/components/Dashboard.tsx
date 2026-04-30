@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
+import { isStuck, getSmartHints, type SmartHint } from '../utils/taskAlerts';
 
 const TZ = 'Europe/Minsk';
 
@@ -171,6 +172,60 @@ function TaskSection({ title, emoji, tasks, onSelect, emptyIcon, emptyText, acce
   );
 }
 
+function SmartHintsPanel({ hints, onTaskClick }: { hints: SmartHint[]; onTaskClick?: (taskId: string) => void }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const visible = hints.filter(h => !dismissed.has(h.id));
+  if (visible.length === 0) return null;
+
+  const bg: Record<SmartHint['type'], string> = {
+    danger: '#FEF2F2',
+    warning: '#FFFBEB',
+    info: '#EFF6FF',
+  };
+  const border: Record<SmartHint['type'], string> = {
+    danger: '#FECACA',
+    warning: '#FDE68A',
+    info: '#BFDBFE',
+  };
+  const textColor: Record<SmartHint['type'], string> = {
+    danger: '#B91C1C',
+    warning: '#92400E',
+    info: '#1D4ED8',
+  };
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>💡</span> Умные подсказки
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {visible.map(hint => (
+          <div
+            key={hint.id}
+            style={{
+              background: bg[hint.type], border: `1px solid ${border[hint.type]}`,
+              borderRadius: 10, padding: '10px 14px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              cursor: hint.taskId ? 'pointer' : 'default',
+            }}
+            onClick={hint.taskId ? () => onTaskClick?.(hint.taskId!) : undefined}
+          >
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{hint.emoji}</span>
+            <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: textColor[hint.type] }}>{hint.text}</span>
+            <button
+              onClick={e => { e.stopPropagation(); setDismissed(d => new Set([...d, hint.id])); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#aaa', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+              title="Скрыть подсказку"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ searchQuery }: { searchQuery: string }) {
   const { state } = useApp();
   const { tasks, currentUser, users } = state;
@@ -250,6 +305,14 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
   const totalCompleted = myTasks.filter(t => ['completed', 'closed'].includes(t.status)).length;
   const totalEff = myTasks.length > 0 ? Math.round((totalCompleted / myTasks.length) * 100) : 0;
 
+  // Stuck tasks (no activity > 3 days)
+  const stuckTasks = applySearch(activeTasks.filter(t =>
+    !['completed', 'closed'].includes(t.status) && isStuck(t)
+  ));
+
+  // Smart hints
+  const smartHints = getSmartHints(tasks, users, currentUser.id, isDirector);
+
   // Director extras
   const employees = users.filter(u => u.role === 'employee');
 
@@ -291,8 +354,23 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
               <span style={{ fontSize: 12, fontWeight: 700, color: '#C2410C' }}>Ждут ответа: {waitingTasks.length}</span>
             </div>
           )}
+          {stuckTasks.length > 0 && (
+            <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>😴</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>Зависли: {stuckTasks.length}</span>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Smart hints */}
+      <SmartHintsPanel
+        hints={smartHints}
+        onTaskClick={taskId => {
+          const t = tasks.find(x => x.id === taskId);
+          if (t) setSelectedTask(t);
+        }}
+      />
 
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 22 }}>
@@ -303,6 +381,7 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
         <StatCard emoji="⏳" label="Жду ответ" value={waitingTasks.length} sub="ожидание" color="#F97316" />
         <StatCard emoji="🔍" label="На проверке" value={pendingReviewTasks.length} sub="у директора" color="#D97706" />
         <StatCard emoji="⚠️" label="Просрочено" value={overdueTasks.length} sub="нужно действие" color="#B91C1C" highlight={overdueTasks.length > 0} />
+        <StatCard emoji="😴" label="Зависли" value={stuckTasks.length} sub="без движения" color="#6B7280" highlight={stuckTasks.length > 0} />
       </div>
 
       {/* Calendar + efficiency row */}
@@ -391,11 +470,11 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
         />
       </div>
 
-      {/* Overdue + Pending review + Waiting row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+      {/* Overdue + Pending review + Waiting + Stuck row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
         <TaskSection
           emoji="🔥"
-          title="Просроченные задачи"
+          title="Просроченные"
           tasks={overdueTasks}
           onSelect={setSelectedTask}
           emptyIcon="🎉"
@@ -421,6 +500,16 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
           emptyIcon="📨"
           emptyText="Нет задач, ожидающих ответа"
           accentColor="#F97316"
+          maxItems={4}
+        />
+        <TaskSection
+          emoji="😴"
+          title="Зависшие задачи"
+          tasks={stuckTasks}
+          onSelect={setSelectedTask}
+          emptyIcon="✓"
+          emptyText="Нет зависших задач"
+          accentColor="#6B7280"
           maxItems={4}
         />
       </div>

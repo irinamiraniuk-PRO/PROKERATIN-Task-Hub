@@ -123,6 +123,7 @@ export interface Task {
   recurrence?: RecurrenceType;
   recurrenceCustomDays?: number;
   parentRecurringId?: string; // ID of the original recurring task
+  reactionDeadline?: string; // ISO date — when a response/reaction is expected by
 }
 
 export interface AppState {
