@@ -46,7 +46,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
     }}>
       {/* Search */}
       <div style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#C0BDB9', pointerEvents: 'none' }}>
+        <span aria-hidden="true" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#C0BDB9', pointerEvents: 'none' }}>
           ⌕
         </span>
         <input
@@ -54,6 +54,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
           placeholder="Поиск задач..."
+          aria-label="Поиск задач"
           style={{
             width: '100%',
             padding: '7px 12px 7px 30px',

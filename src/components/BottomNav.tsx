@@ -66,7 +66,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
               fontFamily: 'var(--font)',
             }}
           >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
+            <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
             <span style={{ fontSize: 9, fontWeight: active ? 600 : 400, letterSpacing: '0.1px' }}>
               {item.label}
             </span>

@@ -222,7 +222,7 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
                     onMouseEnter={e => { if (!active) { e.currentTarget.style.background = '#F1F0EE'; } }}
                     onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; } }}
                   >
-                    <span style={{ fontSize: 13, flexShrink: 0, opacity: active ? 1 : 0.65, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                    <span aria-hidden="true" style={{ fontSize: 13, flexShrink: 0, opacity: active ? 1 : 0.65, width: 16, textAlign: 'center' }}>{item.icon}</span>
                     <span style={{ flex: 1, lineHeight: 1.35 }}>{item.label}</span>
                     {item.badge !== undefined && item.badge > 0 && (
                       <span style={{
