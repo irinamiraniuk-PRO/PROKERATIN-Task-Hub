@@ -15,6 +15,22 @@ export type TaskStatus =
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type TaskTag =
+  | 'сайт'
+  | 'закупка'
+  | 'бухгалтерия'
+  | 'контент'
+  | 'Instagram'
+  | 'Telegram'
+  | 'обучение'
+  | 'клиент'
+  | 'срочно'
+  | 'директор'
+  | 'личное'
+  | 'дизайн'
+  | 'разработка'
+  | 'акция недели';
+
 export interface User {
   id: string;
   name: string;
@@ -61,6 +77,7 @@ export interface Task {
   plannedDate?: string;
   priority: TaskPriority;
   status: TaskStatus;
+  tags?: TaskTag[];
   comments: Comment[];
   history: HistoryEntry[];
   checklist?: ChecklistItem[];

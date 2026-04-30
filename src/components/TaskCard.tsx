@@ -158,6 +158,19 @@ export default function TaskCard({ task, onClick, draggable, onDragStart }: Task
           ☑️ {task.checklist.filter(i => i.done).length}/{task.checklist.length} пунктов выполнено
         </div>
       )}
+
+      {task.tags && task.tags.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+          {task.tags.slice(0, 4).map(tag => (
+            <span key={tag} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: '#666', fontWeight: 600 }}>
+              #{tag}
+            </span>
+          ))}
+          {task.tags.length > 4 && (
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: '#999' }}>+{task.tags.length - 4}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

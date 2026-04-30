@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Task } from '../types';
+import type { Task, TaskTag } from '../types';
 import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from './TaskCard';
+import { ALL_TAGS } from '../data/taskTags';
 
 interface TaskModalProps {
   task: Task;
@@ -12,7 +13,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const {
     state, updateStatus, transferTask, sendToDirectorReview,
     addComment, directorAction, setPlannedDate, updateDeadline,
-    toggleChecklistItem, addChecklistItem,
+    toggleChecklistItem, addChecklistItem, updateTaskTags,
   } = useApp();
   const { currentUser, users } = state;
   const [comment, setComment] = useState('');
@@ -193,6 +194,11 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                     📅 Запланировано: {new Date(task.plannedDate).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit' })}
                   </span>
                 )}
+                {(task.tags ?? []).map(tag => (
+                  <span key={tag} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#F3F4F6', color: '#555' }}>
+                    #{tag}
+                  </span>
+                ))}
               </div>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{task.title}</h2>
             </div>
@@ -237,6 +243,35 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                     <div style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{m.value}</div>
                   </div>
                 ))}
+              </div>
+
+              {/* Tags */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Теги</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {ALL_TAGS.map(tag => {
+                    const active = (task.tags ?? []).includes(tag as TaskTag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          const current = task.tags ?? [];
+                          const next = active ? current.filter(t => t !== tag) : [...current, tag as TaskTag];
+                          updateTaskTags(task.id, next);
+                        }}
+                        style={{
+                          padding: '4px 10px', borderRadius: 14, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                          border: `1.5px solid ${active ? userColor : '#E0E0E0'}`,
+                          background: active ? `${userColor}15` : '#FAFAF8',
+                          color: active ? userColor : '#777',
+                          transition: 'all 0.12s',
+                        }}
+                      >
+                        #{tag}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Actions */}

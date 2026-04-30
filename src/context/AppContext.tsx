@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
-import type { AppState, User, Task, TaskStatus, TaskPriority, Comment, HistoryEntry, ChecklistItem } from '../types';
+import type { AppState, User, Task, TaskStatus, TaskPriority, TaskTag, Comment, HistoryEntry, ChecklistItem } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 
 const LS_KEY = 'prokeratin_state_v3';
@@ -17,7 +17,9 @@ type Action =
   | { type: 'UPDATE_DEADLINE'; taskId: string; deadline: string; actorId: string }
   | { type: 'TOGGLE_CHECKLIST_ITEM'; taskId: string; itemId: string }
   | { type: 'ADD_CHECKLIST_ITEM'; taskId: string; item: ChecklistItem }
-  | { type: 'SEND_TO_DIRECTOR'; taskId: string; actorId: string };
+  | { type: 'SEND_TO_DIRECTOR'; taskId: string; actorId: string }
+  | { type: 'UPDATE_TASK_TAGS'; taskId: string; tags: TaskTag[] }
+  | { type: 'KANBAN_MOVE'; taskId: string; status: TaskStatus; actorId: string };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -151,6 +153,21 @@ function reducer(state: AppState, action: Action): AppState {
       });
       return { ...state, tasks };
     }
+    case 'UPDATE_TASK_TAGS': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        return { ...t, tags: action.tags };
+      });
+      return { ...state, tasks };
+    }
+    case 'KANBAN_MOVE': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const entry = historyEntry(t.id, action.actorId, statusActionLabel(action.status), t.status, action.status);
+        return { ...t, status: action.status, history: [...t.history, entry] };
+      });
+      return { ...state, tasks };
+    }
     default:
       return state;
   }
@@ -184,7 +201,7 @@ interface AppContextValue {
   state: AppState;
   login: (login: string, password: string) => boolean;
   logout: () => void;
-  createTask: (data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string }) => void;
+  createTask: (data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[] }) => void;
   updateStatus: (taskId: string, status: TaskStatus, meta?: string) => void;
   transferTask: (taskId: string, toUserId: string) => void;
   sendToDirectorReview: (taskId: string) => void;
@@ -195,6 +212,8 @@ interface AppContextValue {
   updateDeadline: (taskId: string, deadline: string) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
   addChecklistItem: (taskId: string, text: string) => void;
+  updateTaskTags: (taskId: string, tags: TaskTag[]) => void;
+  kanbanMove: (taskId: string, status: TaskStatus) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -214,7 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function logout() { dispatch({ type: 'LOGOUT' }); }
 
-  function createTask(data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string }) {
+  function createTask(data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[] }) {
     if (!state.currentUser) return;
     const id = uid();
     const nowTs = new Date().toISOString();
@@ -228,6 +247,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deadline: data.deadline,
       plannedDate: data.plannedDate,
       priority: data.priority,
+      tags: data.tags,
       status: 'new',
       comments: [],
       history: [historyEntry(id, state.currentUser.id, 'Задача создана', undefined, 'new')],
@@ -286,11 +306,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'ADD_CHECKLIST_ITEM', taskId, item });
   }
 
+  function updateTaskTags(taskId: string, tags: TaskTag[]) {
+    dispatch({ type: 'UPDATE_TASK_TAGS', taskId, tags });
+  }
+
+  function kanbanMove(taskId: string, status: TaskStatus) {
+    if (!state.currentUser) return;
+    dispatch({ type: 'KANBAN_MOVE', taskId, status, actorId: state.currentUser.id });
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
       sendToDirectorReview, addComment, directorAction,
       setPlannedDate, moveTaskToDay, updateDeadline, toggleChecklistItem, addChecklistItem,
+      updateTaskTags, kanbanMove,
     }}>
       {children}
     </AppContext.Provider>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import type { TaskPriority } from '../types';
+import type { TaskPriority, TaskTag } from '../types';
+import { ALL_TAGS } from '../data/taskTags';
 
 interface CreateTaskModalProps {
   onClose: () => void;
@@ -25,18 +26,29 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [deadline, setDeadline] = useState(today);
   const [plannedDate, setPlannedDate] = useState(today);
   const [priority, setPriority] = useState<TaskPriority>('medium');
+  const [selectedTags, setSelectedTags] = useState<TaskTag[]>([]);
   const [error, setError] = useState('');
 
-  const availableUsers = currentUser?.role === 'director'
-    ? users
-    : users;
+  const availableUsers = users;
+
+  function toggleTag(tag: TaskTag) {
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) { setError('Введите название задачи'); return; }
     if (!assignedTo) { setError('Выберите исполнителя'); return; }
     if (!deadline) { setError('Укажите срок'); return; }
-    createTask({ title: title.trim(), description: description.trim(), assignedTo, deadline: deadline + 'T23:59:59.000Z', priority, plannedDate: plannedDate || undefined });
+    createTask({
+      title: title.trim(),
+      description: description.trim(),
+      assignedTo,
+      deadline: deadline + 'T23:59:59.000Z',
+      priority,
+      plannedDate: plannedDate || undefined,
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
+    });
     onClose();
   }
 
@@ -148,6 +160,32 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                 onFocus={e => (e.target.style.borderColor = '#4A90D9')}
                 onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
               />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label style={labelStyle}>Теги {selectedTags.length > 0 && `(${selectedTags.length} выбрано)`}</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {ALL_TAGS.map(tag => {
+                const active = selectedTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    style={{
+                      padding: '4px 10px', borderRadius: 14, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      border: `1.5px solid ${active ? '#4A90D9' : '#E0E0E0'}`,
+                      background: active ? '#EFF6FF' : '#FAFAF8',
+                      color: active ? '#1D4ED8' : '#777',
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
