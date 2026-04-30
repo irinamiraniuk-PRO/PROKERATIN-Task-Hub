@@ -13,6 +13,7 @@ type Action =
   | { type: 'ADD_COMMENT'; comment: Comment; taskId: string; actorId: string }
   | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string }
   | { type: 'SET_PLANNED_DATE'; taskId: string; plannedDate: string }
+  | { type: 'MOVE_TASK_TO_DAY'; taskId: string; plannedDate: string; actorId: string }
   | { type: 'UPDATE_DEADLINE'; taskId: string; deadline: string; actorId: string }
   | { type: 'TOGGLE_CHECKLIST_ITEM'; taskId: string; itemId: string }
   | { type: 'ADD_CHECKLIST_ITEM'; taskId: string; item: ChecklistItem }
@@ -110,6 +111,20 @@ function reducer(state: AppState, action: Action): AppState {
       });
       return { ...state, tasks };
     }
+    case 'MOVE_TASK_TO_DAY': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.taskId) return t;
+        const fromLabel = t.plannedDate
+          ? new Date(t.plannedDate).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' })
+          : 'без даты';
+        const toLabel = action.plannedDate
+          ? new Date(action.plannedDate).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' })
+          : 'без даты';
+        const entry = historyEntry(t.id, action.actorId, `Задача перенесена: ${fromLabel} → ${toLabel}`);
+        return { ...t, plannedDate: action.plannedDate, history: [...t.history, entry] };
+      });
+      return { ...state, tasks };
+    }
     case 'UPDATE_DEADLINE': {
       const tasks = state.tasks.map(t => {
         if (t.id !== action.taskId) return t;
@@ -176,6 +191,7 @@ interface AppContextValue {
   addComment: (taskId: string, text: string) => void;
   directorAction: (taskId: string, action: 'approve' | 'return', note?: string) => void;
   setPlannedDate: (taskId: string, plannedDate: string) => void;
+  moveTaskToDay: (taskId: string, plannedDate: string) => void;
   updateDeadline: (taskId: string, deadline: string) => void;
   toggleChecklistItem: (taskId: string, itemId: string) => void;
   addChecklistItem: (taskId: string, text: string) => void;
@@ -251,6 +267,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_PLANNED_DATE', taskId, plannedDate });
   }
 
+  function moveTaskToDay(taskId: string, plannedDate: string) {
+    if (!state.currentUser) return;
+    dispatch({ type: 'MOVE_TASK_TO_DAY', taskId, plannedDate, actorId: state.currentUser.id });
+  }
+
   function updateDeadline(taskId: string, deadline: string) {
     if (!state.currentUser) return;
     dispatch({ type: 'UPDATE_DEADLINE', taskId, deadline, actorId: state.currentUser.id });
@@ -269,7 +290,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
       sendToDirectorReview, addComment, directorAction,
-      setPlannedDate, updateDeadline, toggleChecklistItem, addChecklistItem,
+      setPlannedDate, moveTaskToDay, updateDeadline, toggleChecklistItem, addChecklistItem,
     }}>
       {children}
     </AppContext.Provider>

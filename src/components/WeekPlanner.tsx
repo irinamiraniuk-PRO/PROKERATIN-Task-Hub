@@ -74,7 +74,7 @@ function MiniTaskCard({ task, onClick, onDragStart }: MiniTaskCardProps) {
 }
 
 export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
-  const { state, setPlannedDate } = useApp();
+  const { state, moveTaskToDay } = useApp();
   const { tasks, currentUser } = state;
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -122,7 +122,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('taskId');
     if (taskId) {
-      setPlannedDate(taskId, targetDay);
+      moveTaskToDay(taskId, targetDay);
     }
     setDragOverDay(null);
   }
@@ -131,7 +131,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('taskId');
     if (taskId) {
-      setPlannedDate(taskId, '');
+      moveTaskToDay(taskId, '');
     }
     setDragOverDay(null);
   }
