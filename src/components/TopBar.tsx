@@ -30,22 +30,24 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
 
   return (
     <header style={{
-      height: 60,
-      background: '#fff',
-      borderBottom: '1px solid #EBEBEB',
+      height: 56,
+      background: 'rgba(255,255,255,0.92)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderBottom: '1px solid #EEECEA',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 24px',
-      gap: 16,
+      padding: '0 20px',
+      gap: 12,
       position: 'sticky',
       top: 0,
       zIndex: 100,
       flexShrink: 0,
     }}>
       {/* Search */}
-      <div style={{ flex: 1, maxWidth: 400, position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#bbb' }}>
-          🔍
+      <div style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
+        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#C0BDB9', pointerEvents: 'none' }}>
+          ⌕
         </span>
         <input
           type="text"
@@ -54,23 +56,24 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
           placeholder="Поиск задач..."
           style={{
             width: '100%',
-            padding: '8px 12px 8px 32px',
-            border: '1.5px solid #E8E8E8',
-            borderRadius: 9,
+            padding: '7px 12px 7px 30px',
+            border: '1.5px solid #EEECEA',
+            borderRadius: 8,
             fontSize: 13,
             outline: 'none',
             boxSizing: 'border-box',
-            background: '#FAFAF8',
-            color: '#333',
-            transition: 'border-color 0.2s',
+            background: '#F7F7F5',
+            color: '#1A1A1A',
+            transition: 'border-color 0.15s, background 0.15s',
+            fontFamily: 'var(--font)',
           }}
-          onFocus={e => (e.target.style.borderColor = color)}
-          onBlur={e => (e.target.style.borderColor = '#E8E8E8')}
+          onFocus={e => { e.target.style.borderColor = color; e.target.style.background = '#fff'; }}
+          onBlur={e => { e.target.style.borderColor = '#EEECEA'; e.target.style.background = '#F7F7F5'; }}
         />
       </div>
 
       {/* Greeting */}
-      <div className="topbar-greeting" style={{ fontSize: 13, color: '#888', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
+      <div className="topbar-greeting" style={{ fontSize: 13, color: '#ADADAD', fontWeight: 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 240 }}>
         {getGreeting(currentUser.name)}
       </div>
 
@@ -81,33 +84,36 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
         <button
           onClick={() => setShowNotifications(v => !v)}
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: showNotifications ? `2px solid ${color}` : '1.5px solid #E8E8E8',
-            background: showNotifications ? `${color}10` : '#fff',
+            width: 34,
+            height: 34,
+            borderRadius: 8,
+            border: showNotifications ? `1.5px solid ${color}` : '1.5px solid #EEECEA',
+            background: showNotifications ? `${color}0F` : 'transparent',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 16,
+            fontSize: 15,
             position: 'relative',
-            transition: 'all 0.15s',
+            transition: 'all 0.12s',
             flexShrink: 0,
+            color: '#6B6B6B',
           }}
           title="Уведомления"
+          onMouseEnter={e => { if (!showNotifications) { e.currentTarget.style.background = '#F7F7F5'; e.currentTarget.style.borderColor = '#DEDAD6'; } }}
+          onMouseLeave={e => { if (!showNotifications) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#EEECEA'; } }}
         >
           🔔
           {unreadCount > 0 && (
             <span style={{
               position: 'absolute',
-              top: -2,
-              right: -2,
-              background: '#BE185D',
+              top: -3,
+              right: -3,
+              background: color,
               color: '#fff',
               fontSize: 9,
-              fontWeight: 800,
-              borderRadius: 8,
+              fontWeight: 700,
+              borderRadius: 100,
               padding: '1px 4px',
               minWidth: 14,
               textAlign: 'center',
@@ -125,28 +131,28 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
       </div>
 
       {/* User info */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ textAlign: 'right' }}>
-          <div className="topbar-user-name" style={{ fontSize: 13, fontWeight: 700, color: '#222' }}>{currentUser.name}</div>
-          <div style={{ fontSize: 10, color: isDirector ? color : '#999', fontWeight: isDirector ? 700 : 500 }}>
+          <div className="topbar-user-name" style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-0.1px' }}>{currentUser.name}</div>
+          <div style={{ fontSize: 10, color: isDirector ? color : '#ADADAD', fontWeight: isDirector ? 600 : 400 }}>
             {isDirector ? '👑 Директор' : 'Сотрудник'}
           </div>
         </div>
 
         {/* Avatar */}
         <div style={{
-          width: 36,
-          height: 36,
+          width: 34,
+          height: 34,
           borderRadius: '50%',
-          background: `linear-gradient(135deg, ${color}, ${color}99)`,
+          background: `linear-gradient(135deg, ${color}, ${color}AA)`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#fff',
-          fontSize: 13,
-          fontWeight: 800,
+          fontSize: 12,
+          fontWeight: 700,
           flexShrink: 0,
-          boxShadow: `0 2px 8px ${color}50`,
+          boxShadow: `0 2px 8px ${color}40`,
         }}>
           {initials}
         </div>
@@ -154,25 +160,26 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
         <button
           onClick={logout}
           style={{
-            padding: '7px 14px',
-            borderRadius: 8,
-            border: '1.5px solid #E8E8E8',
+            padding: '6px 12px',
+            borderRadius: 7,
+            border: '1.5px solid #EEECEA',
             cursor: 'pointer',
-            background: '#fff',
+            background: 'transparent',
             fontSize: 12,
-            color: '#666',
+            color: '#6B6B6B',
             fontWeight: 500,
-            transition: 'all 0.15s',
+            transition: 'all 0.12s',
+            fontFamily: 'var(--font)',
           }}
           onMouseEnter={e => {
             e.currentTarget.style.background = '#FEF2F2';
             e.currentTarget.style.borderColor = '#FECACA';
-            e.currentTarget.style.color = '#B91C1C';
+            e.currentTarget.style.color = '#EF4444';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.background = '#fff';
-            e.currentTarget.style.borderColor = '#E8E8E8';
-            e.currentTarget.style.color = '#666';
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = '#EEECEA';
+            e.currentTarget.style.color = '#6B6B6B';
           }}
         >
           Выйти

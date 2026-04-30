@@ -46,7 +46,7 @@ export default function Layout() {
       case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
       case 'kanban': return (
         <div style={{ padding: '20px 24px' }}>
-          <h1 style={{ margin: '0 0 14px', fontSize: 20, fontWeight: 700, color: '#111' }}>⬛ Канбан-доска</h1>
+          <h1 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>▤ Канбан-доска</h1>
           <KanbanBoard tasks={visibleTasks} searchQuery={searchQuery} />
         </div>
       );
@@ -66,7 +66,7 @@ export default function Layout() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#FAFAF8', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', background: '#F7F7F5', overflow: 'hidden' }}>
       <div className="sidebar-wrapper">
         <Sidebar
           currentView={view}

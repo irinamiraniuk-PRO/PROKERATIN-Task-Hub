@@ -45,14 +45,14 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: selected ? `linear-gradient(145deg, ${hexAlpha(color, 0.08)}, #fff)` : '#fff',
-        borderRadius: 20,
-        padding: '28px 22px 22px',
+        background: selected ? `linear-gradient(145deg, ${hexAlpha(color, 0.06)}, #fff)` : '#fff',
+        borderRadius: 16,
+        padding: '24px 20px 20px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 10,
-        border: selected ? `2px solid ${color}` : `2px solid ${hovered ? hexAlpha(color, 0.4) : '#EBEBEB'}`,
+        gap: 9,
+        border: selected ? `1.5px solid ${color}` : `1.5px solid ${hovered ? hexAlpha(color, 0.3) : '#EEECEA'}`,
         boxShadow: glowShadow,
         transform: scale,
         outline: 'none',
@@ -176,33 +176,33 @@ export default function Login() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #FFF0F7 0%, #FEFBFF 55%, #F0F4FF 100%)',
+      background: 'linear-gradient(145deg, #FBF7FF 0%, #FEFEFE 50%, #F5F8FF 100%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      fontFamily: "'Segoe UI', system-ui, sans-serif",
+      fontFamily: 'var(--font)',
       padding: 24,
     }}>
       {/* Logo */}
-      <div className="anim-fade-in" style={{ textAlign: 'center', marginBottom: 40 }}>
+      <div className="anim-fade-in" style={{ textAlign: 'center', marginBottom: 44 }}>
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: 56,
-          height: 56,
-          borderRadius: 16,
-          background: 'linear-gradient(135deg, #BE185D, #EC4899)',
-          boxShadow: '0 6px 24px rgba(190,24,93,0.35)',
-          marginBottom: 14,
+          width: 52,
+          height: 52,
+          borderRadius: 14,
+          background: 'linear-gradient(135deg, #BE185D, #DB2777)',
+          boxShadow: '0 8px 28px rgba(190,24,93,0.3)',
+          marginBottom: 16,
         }}>
-          <span style={{ fontSize: 26 }}>✦</span>
+          <span style={{ fontSize: 22, color: '#fff' }}>✦</span>
         </div>
-        <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.8px', color: '#111' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.8px', color: '#1A1A1A' }}>
           PROKERATIN
         </div>
-        <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>
+        <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5, fontWeight: 400 }}>
           Система управления задачами
         </div>
       </div>
@@ -211,8 +211,8 @@ export default function Login() {
       {step === 'select' && (
         <div className="anim-scale-in" style={{ width: '100%', maxWidth: 720 }}>
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#222' }}>Выберите свой профиль</div>
-            <div style={{ fontSize: 13, color: '#aaa', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>Выберите свой профиль</div>
+            <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
           </div>
 
           <div
@@ -235,7 +235,7 @@ export default function Login() {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: 32, fontSize: 11, color: '#ccc' }}>
+          <div style={{ textAlign: 'center', marginTop: 36, fontSize: 11, color: '#D8D5D1' }}>
             PROKERATIN Task Hub • {new Date().getFullYear()}
           </div>
         </div>
@@ -288,9 +288,10 @@ export default function Login() {
           {/* Password card */}
           <div style={{
             background: '#fff',
-            borderRadius: 20,
-            padding: '32px 28px',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.1)',
+            borderRadius: 16,
+            padding: '28px 24px',
+            boxShadow: '0 4px 32px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+            border: '1px solid #EEECEA',
           }}>
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom: 20 }}>
