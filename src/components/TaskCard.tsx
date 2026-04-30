@@ -14,6 +14,7 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   closed: 'Закрыта',
   postponed: 'Отложена',
   overdue: 'Просрочена',
+  blocked: 'Заблокирована',
 };
 
 export const PRIORITY_LABELS: Record<TaskPriority, string> = {
