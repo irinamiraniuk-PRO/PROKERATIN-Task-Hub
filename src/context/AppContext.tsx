@@ -2,12 +2,13 @@ import { createContext, useContext, useReducer, useEffect, type ReactNode } from
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
-  RecurrenceType,
+  RecurrenceType, Project, ProjectStatus,
 } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
+import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v6';
+const LS_KEY = 'prokeratin_state_v7';
 
 type Action =
   | { type: 'LOGIN'; user: User }
@@ -28,7 +29,11 @@ type Action =
   | { type: 'KANBAN_MOVE'; taskId: string; status: TaskStatus; actorId: string }
   | { type: 'ADD_ATTACHMENT'; attachment: Attachment; actorId: string }
   | { type: 'MARK_NOTIFICATION_READ'; notificationId: string }
-  | { type: 'MARK_ALL_READ'; userId: string };
+  | { type: 'MARK_ALL_READ'; userId: string }
+  | { type: 'UPDATE_TASK_PROJECT'; taskId: string; projectId: string | undefined }
+  | { type: 'UPDATE_TASK_DEPS'; taskId: string; dependsOn: string[] }
+  | { type: 'CREATE_PROJECT'; project: Project }
+  | { type: 'UPDATE_PROJECT'; projectId: string; patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>> };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -51,6 +56,7 @@ function statusActionLabel(status: TaskStatus): string {
     closed: 'Задача закрыта',
     postponed: 'Задача отложена',
     overdue: 'Задача просрочена',
+    blocked: 'Задача заблокирована',
   };
   return map[status] ?? status;
 }
@@ -266,6 +272,38 @@ function reducer(state: AppState, action: Action): AppState {
       );
       return { ...state, notifications };
     }
+    case 'UPDATE_TASK_PROJECT': {
+      // Remove task from old project, add to new one
+      const oldProjectId = state.tasks.find(t => t.id === action.taskId)?.projectId;
+      const tasks = state.tasks.map(t =>
+        t.id === action.taskId ? { ...t, projectId: action.projectId } : t
+      );
+      const projects = state.projects.map(p => {
+        if (p.id === oldProjectId && oldProjectId !== action.projectId) {
+          return { ...p, taskIds: p.taskIds.filter(id => id !== action.taskId) };
+        }
+        if (p.id === action.projectId && action.projectId && !p.taskIds.includes(action.taskId)) {
+          return { ...p, taskIds: [...p.taskIds, action.taskId] };
+        }
+        return p;
+      });
+      return { ...state, tasks, projects };
+    }
+    case 'UPDATE_TASK_DEPS': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.taskId ? { ...t, dependsOn: action.dependsOn } : t
+      );
+      return { ...state, tasks };
+    }
+    case 'CREATE_PROJECT': {
+      return { ...state, projects: [...state.projects, action.project] };
+    }
+    case 'UPDATE_PROJECT': {
+      const projects = state.projects.map(p =>
+        p.id === action.projectId ? { ...p, ...action.patch } : p
+      );
+      return { ...state, projects };
+    }
     default:
       return state;
   }
@@ -276,6 +314,7 @@ const initialState: AppState = {
   tasks: INITIAL_TASKS,
   users: USERS,
   notifications: [],
+  projects: INITIAL_PROJECTS,
 };
 
 function loadState(): AppState {
@@ -288,6 +327,7 @@ function loadState(): AppState {
         ...parsed,
         currentUser: null,
         notifications: parsed.notifications ?? [],
+        projects: parsed.projects ?? INITIAL_PROJECTS,
       };
     }
   } catch { /* ignore */ }
@@ -309,7 +349,7 @@ interface AppContextValue {
     title: string; description: string; assignedTo: string;
     deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
     checklist?: string[]; recurrence?: RecurrenceType; recurrenceCustomDays?: number;
-    reactionDeadline?: string;
+    reactionDeadline?: string; projectId?: string; dependsOn?: string[];
   }) => void;
   updateStatus: (taskId: string, status: TaskStatus, meta?: string) => void;
   transferTask: (taskId: string, toUserId: string) => void;
@@ -327,6 +367,10 @@ interface AppContextValue {
   addAttachment: (taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) => void;
   markNotificationRead: (notificationId: string) => void;
   markAllRead: () => void;
+  updateTaskProject: (taskId: string, projectId: string | undefined) => void;
+  updateTaskDeps: (taskId: string, dependsOn: string[]) => void;
+  createProject: (data: Omit<Project, 'id' | 'createdAt' | 'taskIds'>) => void;
+  updateProject: (projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);

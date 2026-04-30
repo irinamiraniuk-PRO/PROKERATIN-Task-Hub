@@ -11,7 +11,8 @@ export type TaskStatus =
   | 'completed'
   | 'closed'
   | 'postponed'
-  | 'overdue';
+  | 'overdue'
+  | 'blocked';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -30,6 +31,8 @@ export type TaskTag =
   | 'дизайн'
   | 'разработка'
   | 'акция недели';
+
+export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed';
 
 export type NotificationType =
   | 'new_task'
@@ -101,6 +104,20 @@ export interface Notification {
   read: boolean;
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  status: ProjectStatus;
+  ownerId: string;
+  memberIds: string[];
+  deadline: string; // ISO
+  createdAt: string; // ISO
+  color: string;
+  taskIds: string[]; // linked task IDs
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -124,6 +141,8 @@ export interface Task {
   recurrenceCustomDays?: number;
   parentRecurringId?: string; // ID of the original recurring task
   reactionDeadline?: string; // ISO date — when a response/reaction is expected by
+  projectId?: string; // linked project ID
+  dependsOn?: string[]; // task IDs this task depends on (must complete first)
 }
 
 export interface AppState {
@@ -131,5 +150,6 @@ export interface AppState {
   tasks: Task[];
   users: User[];
   notifications: Notification[];
+  projects: Project[];
 }
 
