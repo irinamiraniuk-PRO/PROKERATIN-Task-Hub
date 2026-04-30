@@ -112,69 +112,74 @@ export default function TaskCard({ task, onClick, draggable, onDragStart }: Task
       onDragStart={onDragStart ? (e) => onDragStart(e, task) : undefined}
       onClick={() => onClick(task)}
       style={{
-        background: bg, borderRadius: 12, padding: '14px 18px', cursor: 'pointer',
-        border: `1.5px solid ${task.status === 'returned_for_revision' ? '#FECACA' : task.priority === 'urgent' ? '#FECACA' : '#EBEBEB'}`,
-        transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        borderLeft: `4px solid ${pc}`,
+        background: bg,
+        borderRadius: 10,
+        padding: '12px 14px',
+        cursor: 'pointer',
+        border: `1px solid ${task.status === 'returned_for_revision' ? '#FECACA' : task.priority === 'urgent' ? '#FECACA' : '#EEECEA'}`,
+        transition: 'box-shadow 0.18s, transform 0.18s',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        borderLeft: `3px solid ${pc}`,
+        position: 'relative',
       }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.09)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = ''; }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', lineHeight: 1.4, flex: 1 }}>{task.title}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: '#1A1A1A', lineHeight: 1.4, flex: 1, letterSpacing: '-0.1px' }}>{task.title}</div>
         <span style={{
-          fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6,
+          fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 5,
           background: sc.bg, color: sc.text, whiteSpace: 'nowrap', flexShrink: 0,
         }}>
           {STATUS_LABELS[task.status]}
         </span>
       </div>
 
-      <div style={{ fontSize: 12, color: '#777', marginBottom: 8, lineHeight: 1.4 }}>
+      <div style={{ fontSize: 12, color: '#9A9A9A', marginBottom: 8, lineHeight: 1.45 }}>
         {task.description.length > 80 ? task.description.slice(0, 80) + '…' : task.description}
       </div>
 
       {lastComment && (
-        <div style={{ background: 'rgba(0,0,0,0.03)', borderRadius: 6, padding: '6px 10px', marginBottom: 8, fontSize: 11, color: '#666' }}>
+        <div style={{ background: 'rgba(0,0,0,0.025)', borderRadius: 6, padding: '5px 9px', marginBottom: 8, fontSize: 11, color: '#7A7A7A' }}>
           💬 <span style={{ fontWeight: 600 }}>{lastCommentAuthor?.name ?? '?'}</span>: {lastComment.text.length > 60 ? lastComment.text.slice(0, 60) + '…' : lastComment.text}
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{
-            fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 5,
-            background: `${pc}20`, color: pc,
+            fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 4,
+            background: `${pc}18`, color: pc,
           }}>
             {PRIORITY_LABELS[task.priority]}
           </span>
           {assignee && (
-            <span style={{ fontSize: 11, color: '#666' }}>👤 {assignee.name}</span>
+            <span style={{ fontSize: 11, color: '#7A7A7A' }}>👤 {assignee.name}</span>
           )}
           {creator && creator.id !== assignee?.id && (
-            <span style={{ fontSize: 11, color: '#aaa' }}>от {creator.name}</span>
+            <span style={{ fontSize: 11, color: '#C0BDB9' }}>от {creator.name}</span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: overdue ? '#B91C1C' : deadlineSoon ? '#D97706' : '#888', fontWeight: overdue || deadlineSoon ? 600 : 400 }}>
+        <div style={{ fontSize: 11, color: overdue ? '#EF4444' : deadlineSoon ? '#F59E0B' : '#ADADAD', fontWeight: overdue || deadlineSoon ? 600 : 400 }}>
           {overdue ? '⚠️ ' : deadlineSoon ? '⏰ ' : ''}{formatDate(task.deadline)}
         </div>
       </div>
 
       {task.checklist && task.checklist.length > 0 && (
-        <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
+        <div style={{ marginTop: 7, fontSize: 11, color: '#ADADAD' }}>
           ☑️ {task.checklist.filter(i => i.done).length}/{task.checklist.length} пунктов выполнено
         </div>
       )}
 
       {task.tags && task.tags.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 7 }}>
           {task.tags.slice(0, 4).map(tag => (
-            <span key={tag} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: '#666', fontWeight: 600 }}>
+            <span key={tag} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#F1F0EE', color: '#7A7A7A', fontWeight: 500 }}>
               #{tag}
             </span>
           ))}
           {task.tags.length > 4 && (
-            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: '#F3F4F6', color: '#999' }}>+{task.tags.length - 4}</span>
+            <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#F1F0EE', color: '#ADADAD' }}>+{task.tags.length - 4}</span>
           )}
         </div>
       )}

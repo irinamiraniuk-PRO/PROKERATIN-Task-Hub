@@ -5,17 +5,35 @@
 }
 
 :root {
-  --bg: #FAFAF8;
-  --white: #ffffff;
+  /* Palette */
+  --bg: #F7F7F5;
+  --surface: #FFFFFF;
+  --surface-hover: #F5F5F3;
   --accent: #BE185D;
-  --accent-light: #FCE7F3;
+  --accent-light: #FDF2F8;
+  --accent-mid: #FCE7F3;
   --accent-hover: #9D174D;
-  --text-primary: #111111;
-  --text-secondary: #555555;
-  --text-muted: #888888;
-  --border: #EBEBEB;
-  --border-light: #F0F0F0;
-  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --text-primary: #1A1A1A;
+  --text-secondary: #6B6B6B;
+  --text-muted: #ADADAD;
+  --border: #E8E8E5;
+  --border-light: #F1F1EF;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Typography */
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Z-layers */
+  --z-sidebar: 200;
+  --z-topbar: 100;
+  --z-modal: 1000;
+  --z-bottomnav: 300;
 }
 
 html, body, #root {
@@ -30,103 +48,51 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 button, input, select, textarea {
   font-family: var(--font);
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* ── Scrollbar ─────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D8D8D5; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #BABAB7; }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #D0D0D0;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #B0B0B0;
-}
-
-/* ── Animations ─────────────────────────────────────── */
+/* ── Animations ─────────────────────────────────── */
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.94); }
+  from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes workspaceEnter {
-  from { opacity: 0; filter: blur(6px); transform: scale(0.985); }
+  from { opacity: 0; filter: blur(4px); transform: scale(0.99); }
   to   { opacity: 1; filter: blur(0);   transform: scale(1); }
 }
 
 @keyframes taskFadeIn {
-  from { opacity: 0; transform: translateX(-8px); }
+  from { opacity: 0; transform: translateX(-6px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes avatarPop {
   0%   { transform: scale(0.7); opacity: 0; }
-  70%  { transform: scale(1.08); }
-  100% { transform: scale(1);   opacity: 1; }
-}
-
-/* Utility classes */
-.anim-fade-in     { animation: fadeIn         0.35s ease both; }
-.anim-fade-in-up  { animation: fadeInUp       0.4s  ease both; }
-.anim-scale-in    { animation: scaleIn        0.3s  ease both; }
-.anim-workspace   { animation: workspaceEnter 0.55s cubic-bezier(0.16,1,0.3,1) both; }
-.anim-task        { animation: taskFadeIn     0.3s  ease both; }
-
-/* Staggered children */
-.stagger > *:nth-child(1) { animation-delay: 0.04s; }
-.stagger > *:nth-child(2) { animation-delay: 0.09s; }
-.stagger > *:nth-child(3) { animation-delay: 0.14s; }
-.stagger > *:nth-child(4) { animation-delay: 0.19s; }
-.stagger > *:nth-child(5) { animation-delay: 0.24s; }
-.stagger > *:nth-child(6) { animation-delay: 0.29s; }
-.stagger > *:nth-child(7) { animation-delay: 0.34s; }
-.stagger > *:nth-child(8) { animation-delay: 0.39s; }
-
-/* User card (login screen) */
-.user-card {
-  transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1),
-              box-shadow 0.28s ease;
-  cursor: pointer;
-}
-.user-card:hover {
-  transform: scale(1.07) translateY(-5px);
-}
-
-/* Nav item hover */
-.nav-item {
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-
-/* ── Responsive & Mobile ─────────────────────────────── */
-
-:root {
-  --z-sidebar: 200;
-  --z-topbar: 100;
-  --z-modal: 1000;
-  --z-bottomnav: 300;
+  70%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes slideUp {
@@ -136,8 +102,44 @@ button, input, select, textarea {
 
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.05); }
+  50%       { transform: scale(1.04); }
 }
+
+/* Utility classes */
+.anim-fade-in     { animation: fadeIn         0.3s ease both; }
+.anim-fade-in-up  { animation: fadeInUp       0.35s ease both; }
+.anim-scale-in    { animation: scaleIn        0.25s ease both; }
+.anim-workspace   { animation: workspaceEnter 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+.anim-task        { animation: taskFadeIn     0.25s ease both; }
+
+/* Staggered children */
+.stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger > *:nth-child(2) { animation-delay: 0.07s; }
+.stagger > *:nth-child(3) { animation-delay: 0.11s; }
+.stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.stagger > *:nth-child(5) { animation-delay: 0.19s; }
+.stagger > *:nth-child(6) { animation-delay: 0.23s; }
+.stagger > *:nth-child(7) { animation-delay: 0.27s; }
+.stagger > *:nth-child(8) { animation-delay: 0.31s; }
+
+/* ── Component tokens ───────────────────────────── */
+
+/* User card (login screen) */
+.user-card {
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow 0.25s ease;
+  cursor: pointer;
+}
+.user-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Nav item hover */
+.nav-item {
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+/* ── Responsive & Mobile ─────────────────────────── */
 
 /* Sidebar wrapper - hidden on mobile */
 .sidebar-wrapper {
@@ -156,13 +158,15 @@ button, input, select, textarea {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: #fff;
-    border-top: 1px solid #EBEBEB;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
     z-index: var(--z-bottomnav);
-    padding: 6px 0 env(safe-area-inset-bottom, 6px);
+    padding: 6px 4px env(safe-area-inset-bottom, 6px);
     justify-content: space-around;
     align-items: center;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.07);
   }
 }
 
@@ -179,7 +183,7 @@ button, input, select, textarea {
 .responsive-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 @media (max-width: 640px) {
   .responsive-grid-2 { grid-template-columns: 1fr; gap: 10px; }
@@ -188,7 +192,7 @@ button, input, select, textarea {
 .responsive-grid-3 {
   display: grid;
   grid-template-columns: 1fr 1fr 220px;
-  gap: 16px;
+  gap: 14px;
 }
 @media (max-width: 900px) {
   .responsive-grid-3 { grid-template-columns: 1fr 1fr; }
@@ -218,8 +222,8 @@ button, input, select, textarea {
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease !important;
 }
 .btn-primary:hover {
-  transform: translateY(-2px) !important;
+  transform: translateY(-1px) !important;
 }
 .btn-primary:active {
-  transform: scale(0.97) !important;
+  transform: scale(0.98) !important;
 }

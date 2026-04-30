@@ -66,41 +66,41 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
   const navGroups: NavGroup[] = [
     {
       items: [
-        { id: 'dashboard', label: 'Главная', icon: '🏠' },
-        { id: 'calendar-planner', label: 'Дашборд', icon: '📊' },
+        { id: 'dashboard', label: 'Главная', icon: '⌂' },
+        { id: 'calendar-planner', label: 'Дашборд', icon: '▦' },
       ],
     },
     {
       title: 'Планирование',
       items: [
-        { id: 'week-planner', label: 'Планер недели', icon: '📅' },
-        { id: 'kanban', label: 'Канбан-доска', icon: '⬛' },
+        { id: 'week-planner', label: 'Планер недели', icon: '◫' },
+        { id: 'kanban', label: 'Канбан-доска', icon: '▤' },
       ],
     },
     {
       title: 'Задачи',
       items: [
-        { id: 'my-tasks', label: 'Мои задачи', icon: '📋', badge: returnedCount > 0 ? returnedCount : undefined, badgeColor: '#EF4444' },
-        { id: 'incoming', label: 'Входящие', icon: '📥', badge: incomingCount, badgeColor: '#3B82F6' },
-        { id: 'outgoing', label: 'Исходящие', icon: '📤' },
-        { id: 'waiting', label: 'Жду ответ', icon: '⏳', badge: waitingCount, badgeColor: '#F97316', employeeOnly: true },
-        { id: 'pending-director', label: 'На проверке у директора', icon: '🔍', badge: pendingMineCount, badgeColor: '#D97706', employeeOnly: true },
-        { id: 'director-review', label: 'Задачи на проверке', icon: '📋', badge: reviewCount, badgeColor: '#D97706', directorOnly: true },
+        { id: 'my-tasks', label: 'Мои задачи', icon: '◉', badge: returnedCount > 0 ? returnedCount : undefined, badgeColor: '#EF4444' },
+        { id: 'incoming', label: 'Входящие', icon: '↓', badge: incomingCount, badgeColor: '#3B82F6' },
+        { id: 'outgoing', label: 'Исходящие', icon: '↑' },
+        { id: 'waiting', label: 'Жду ответ', icon: '◷', badge: waitingCount, badgeColor: '#F97316', employeeOnly: true },
+        { id: 'pending-director', label: 'На проверке', icon: '◎', badge: pendingMineCount, badgeColor: '#D97706', employeeOnly: true },
+        { id: 'director-review', label: 'На проверке', icon: '◎', badge: reviewCount, badgeColor: '#D97706', directorOnly: true },
       ],
     },
     {
       title: 'Управление',
       items: [
-        { id: 'team', label: 'Команда', icon: '👥', directorOnly: true },
-        { id: 'archive', label: 'Архив', icon: '🗂️' },
-        { id: 'settings', label: 'Настройки', icon: '⚙️' },
+        { id: 'team', label: 'Команда', icon: '◈', directorOnly: true },
+        { id: 'archive', label: 'Архив', icon: '▣' },
+        { id: 'settings', label: 'Настройки', icon: '◌' },
       ],
     },
     {
       title: 'Помощник',
       items: [
-        { id: 'knowledge-base', label: 'База знаний', icon: '📚' },
-        { id: 'onboarding', label: 'Онбординг', icon: '🎓' },
+        { id: 'knowledge-base', label: 'База знаний', icon: '◦' },
+        { id: 'onboarding', label: 'Онбординг', icon: '◇' },
       ],
     },
   ];
@@ -109,10 +109,10 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
 
   return (
     <aside style={{
-      width: 230,
+      width: 240,
       flexShrink: 0,
-      background: '#fff',
-      borderRight: '1px solid #EBEBEB',
+      background: '#FBFBFA',
+      borderRight: '1px solid #EEECEA',
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
@@ -120,58 +120,61 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
       top: 0,
     }}>
       {/* Logo */}
-      <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid #F0F0F0' }}>
+      <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #EEECEA' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 9,
-            background: 'linear-gradient(135deg, #BE185D, #EC4899)',
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: `linear-gradient(135deg, ${userColor}, ${userColor}CC)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 14,
+            fontSize: 13,
             flexShrink: 0,
+            boxShadow: `0 2px 8px ${userColor}40`,
           }}>
             ✦
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#111', letterSpacing: '-0.4px' }}>PROKERATIN</div>
-            <div style={{ fontSize: 9, color: '#bbb', letterSpacing: '0.3px' }}>Task Hub CRM</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px', lineHeight: 1.2 }}>PROKERATIN</div>
+            <div style={{ fontSize: 10, color: '#ADADAD', letterSpacing: '0.2px', marginTop: 1 }}>Task Hub</div>
           </div>
         </div>
       </div>
 
       {/* Create button */}
-      <div style={{ padding: '12px 14px 8px' }}>
+      <div style={{ padding: '10px 12px 6px' }}>
         <button
           onClick={onCreateTask}
           style={{
             width: '100%',
-            padding: '9px',
-            background: `linear-gradient(135deg, ${userColor}, ${userColor}CC)`,
+            padding: '8px 12px',
+            background: userColor,
             color: '#fff',
             border: 'none',
-            borderRadius: 10,
+            borderRadius: 8,
             fontSize: 13,
-            fontWeight: 700,
+            fontWeight: 600,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 6,
-            transition: 'opacity 0.2s, transform 0.15s',
-            boxShadow: `0 3px 12px ${userColor}44`,
+            transition: 'opacity 0.15s, transform 0.15s, box-shadow 0.15s',
+            boxShadow: `0 2px 10px ${userColor}35`,
+            letterSpacing: '-0.1px',
           }}
-          onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 4px 16px ${userColor}45`; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = `0 2px 10px ${userColor}35`; }}
         >
-          <span style={{ fontSize: 16 }}>+</span> Новая задача
+          <span style={{ fontSize: 17, lineHeight: 1, marginTop: -1 }}>+</span>
+          Новая задача
         </button>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: '4px 8px', overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: '4px 6px 8px', overflowY: 'auto' }}>
         {navGroups.map((group, gi) => {
           const visibleItems = group.items.filter(item => {
             if (item.directorOnly && !isDirector) return false;
@@ -180,15 +183,15 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
           });
           if (visibleItems.length === 0) return null;
           return (
-            <div key={gi} style={{ marginBottom: 8 }}>
+            <div key={gi} style={{ marginBottom: 4 }}>
               {group.title && (
                 <div style={{
                   fontSize: 10,
-                  fontWeight: 700,
-                  color: '#ccc',
+                  fontWeight: 600,
+                  color: '#C0BDB9',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.6px',
-                  padding: '8px 10px 4px',
+                  letterSpacing: '0.7px',
+                  padding: '10px 10px 3px',
                 }}>
                   {group.title}
                 </div>
@@ -201,8 +204,8 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
                     onClick={() => onViewChange(item.id)}
                     style={{
                       width: '100%',
-                      padding: '8px 10px',
-                      borderRadius: 8,
+                      padding: '6px 10px',
+                      borderRadius: 6,
                       border: 'none',
                       cursor: 'pointer',
                       display: 'flex',
@@ -210,28 +213,29 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
                       gap: 8,
                       marginBottom: 1,
                       textAlign: 'left',
-                      background: active ? `${userColor}15` : 'transparent',
-                      color: active ? userColor : '#444',
-                      fontWeight: active ? 700 : 400,
-                      fontSize: 13,
-                      transition: 'all 0.15s',
-                      borderLeft: active ? `3px solid ${userColor}` : '3px solid transparent',
+                      background: active ? `${userColor}12` : 'transparent',
+                      color: active ? userColor : '#4A4A4A',
+                      fontWeight: active ? 600 : 400,
+                      fontSize: 13.5,
+                      transition: 'background 0.12s, color 0.12s',
                     }}
-                    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = '#F5F5F5'; } }}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = '#F1F0EE'; } }}
                     onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; } }}
                   >
-                    <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
-                    <span style={{ flex: 1, lineHeight: 1.3 }}>{item.label}</span>
+                    <span aria-hidden="true" style={{ fontSize: 13, flexShrink: 0, opacity: active ? 1 : 0.65, width: 16, textAlign: 'center' }}>{item.icon}</span>
+                    <span style={{ flex: 1, lineHeight: 1.35 }}>{item.label}</span>
                     {item.badge !== undefined && item.badge > 0 && (
                       <span style={{
                         background: item.badgeColor ?? '#EF4444',
                         color: '#fff',
-                        borderRadius: 10,
+                        borderRadius: 100,
                         fontSize: 10,
                         fontWeight: 700,
-                        padding: '1px 5px',
-                        minWidth: 16,
+                        padding: '1px 6px',
+                        minWidth: 18,
                         textAlign: 'center',
+                        lineHeight: '16px',
+                        height: 16,
                       }}>
                         {item.badge}
                       </span>
@@ -245,52 +249,56 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
       </nav>
 
       {/* User info + logout */}
-      <div style={{ padding: '12px 14px', borderTop: '1px solid #F0F0F0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div style={{ padding: '10px 12px', borderTop: '1px solid #EEECEA' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 32,
-            height: 32,
+            width: 30,
+            height: 30,
             borderRadius: '50%',
-            background: `linear-gradient(135deg, ${userColor}, ${userColor}99)`,
+            background: `linear-gradient(135deg, ${userColor}, ${userColor}AA)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#fff',
-            fontWeight: 800,
-            fontSize: 13,
+            fontWeight: 700,
+            fontSize: 11,
             flexShrink: 0,
-            boxShadow: `0 2px 6px ${userColor}44`,
+            boxShadow: `0 1px 5px ${userColor}35`,
           }}>
             {initials}
           </div>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ overflow: 'hidden', flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.1px' }}>
               {currentUser.name}
             </div>
-            <div style={{ fontSize: 10, color: isDirector ? userColor : '#aaa', fontWeight: isDirector ? 700 : 400 }}>
+            <div style={{ fontSize: 10, color: isDirector ? userColor : '#ADADAD', fontWeight: isDirector ? 600 : 400, marginTop: 0.5 }}>
               {isDirector ? '👑 Директор' : 'Сотрудник'}
             </div>
           </div>
+          <button
+            onClick={logout}
+            title="Выйти"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              border: '1px solid #E8E5E2',
+              background: 'transparent',
+              color: '#ADADAD',
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 0.12s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.borderColor = '#FECACA'; e.currentTarget.style.color = '#EF4444'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#E8E5E2'; e.currentTarget.style.color = '#ADADAD'; }}
+          >
+            ⎋
+          </button>
         </div>
-        <button
-          onClick={logout}
-          style={{
-            width: '100%',
-            padding: '7px',
-            background: '#FFF5F5',
-            color: '#B91C1C',
-            border: '1px solid #FECACA',
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#FEE2E2'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#FFF5F5'; }}
-        >
-          Выйти
-        </button>
       </div>
     </aside>
   );
