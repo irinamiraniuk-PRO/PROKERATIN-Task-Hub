@@ -1,17 +1,21 @@
 import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
-import type { AppState, User, Task, TaskStatus, TaskPriority, TaskTag, Comment, HistoryEntry, ChecklistItem } from '../types';
+import type {
+  AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
+  Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
+} from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
+import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v3';
+const LS_KEY = 'prokeratin_state_v4';
 
 type Action =
   | { type: 'LOGIN'; user: User }
   | { type: 'LOGOUT' }
-  | { type: 'CREATE_TASK'; task: Task }
+  | { type: 'CREATE_TASK'; task: Task; notifications: Notification[] }
   | { type: 'UPDATE_STATUS'; taskId: string; status: TaskStatus; actorId: string; meta?: string }
-  | { type: 'TRANSFER_TASK'; taskId: string; toUserId: string; actorId: string; toUserName: string }
-  | { type: 'ADD_COMMENT'; comment: Comment; taskId: string; actorId: string }
-  | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string }
+  | { type: 'TRANSFER_TASK'; taskId: string; toUserId: string; actorId: string; toUserName: string; notification?: Notification }
+  | { type: 'ADD_COMMENT'; comment: Comment; taskId: string; actorId: string; notifications: Notification[] }
+  | { type: 'DIRECTOR_ACTION'; taskId: string; action: 'approve' | 'return'; actorId: string; note?: string; notification?: Notification }
   | { type: 'SET_PLANNED_DATE'; taskId: string; plannedDate: string }
   | { type: 'MOVE_TASK_TO_DAY'; taskId: string; plannedDate: string; actorId: string }
   | { type: 'UPDATE_DEADLINE'; taskId: string; deadline: string; actorId: string }
@@ -19,7 +23,10 @@ type Action =
   | { type: 'ADD_CHECKLIST_ITEM'; taskId: string; item: ChecklistItem }
   | { type: 'SEND_TO_DIRECTOR'; taskId: string; actorId: string }
   | { type: 'UPDATE_TASK_TAGS'; taskId: string; tags: TaskTag[] }
-  | { type: 'KANBAN_MOVE'; taskId: string; status: TaskStatus; actorId: string };
+  | { type: 'KANBAN_MOVE'; taskId: string; status: TaskStatus; actorId: string }
+  | { type: 'ADD_ATTACHMENT'; attachment: Attachment; actorId: string }
+  | { type: 'MARK_NOTIFICATION_READ'; notificationId: string }
+  | { type: 'MARK_ALL_READ'; userId: string };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -46,6 +53,11 @@ function statusActionLabel(status: TaskStatus): string {
   return map[status] ?? status;
 }
 
+function makeNotif(userId: string, type: NotificationType, taskId: string, taskTitle: string, message: string): Notification {
+  return { id: uid(), userId, type, taskId, taskTitle, message, createdAt: new Date().toISOString(), read: false };
+}
+
+
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'LOGIN':
@@ -53,7 +65,11 @@ function reducer(state: AppState, action: Action): AppState {
     case 'LOGOUT':
       return { ...state, currentUser: null };
     case 'CREATE_TASK':
-      return { ...state, tasks: [action.task, ...state.tasks] };
+      return {
+        ...state,
+        tasks: [action.task, ...state.tasks],
+        notifications: [...state.notifications, ...action.notifications],
+      };
     case 'UPDATE_STATUS': {
       const tasks = state.tasks.map(t => {
         if (t.id !== action.taskId) return t;
@@ -75,14 +91,15 @@ function reducer(state: AppState, action: Action): AppState {
         if (t.id !== action.taskId) return t;
         const entry = historyEntry(t.id, action.actorId, `Передана пользователю ${action.toUserName}`, t.status, 'transferred', action.toUserId);
         return {
-          ...t,
-          status: 'transferred' as TaskStatus,
-          transferredTo: action.toUserId,
-          transferredFrom: action.actorId,
+          ...t, status: 'transferred' as TaskStatus,
+          transferredTo: action.toUserId, transferredFrom: action.actorId,
           history: [...t.history, entry],
         };
       });
-      return { ...state, tasks };
+      const notifications = action.notification
+        ? [...state.notifications, action.notification]
+        : state.notifications;
+      return { ...state, tasks, notifications };
     }
     case 'ADD_COMMENT': {
       const tasks = state.tasks.map(t => {
@@ -90,7 +107,7 @@ function reducer(state: AppState, action: Action): AppState {
         const entry = historyEntry(t.id, action.actorId, 'Добавлен комментарий');
         return { ...t, comments: [...t.comments, action.comment], history: [...t.history, entry] };
       });
-      return { ...state, tasks };
+      return { ...state, tasks, notifications: [...state.notifications, ...action.notifications] };
     }
     case 'DIRECTOR_ACTION': {
       const tasks = state.tasks.map(t => {
@@ -104,7 +121,10 @@ function reducer(state: AppState, action: Action): AppState {
           return { ...t, status: 'returned_for_revision' as TaskStatus, history: [...t.history, entry] };
         }
       });
-      return { ...state, tasks };
+      const notifications = action.notification
+        ? [...state.notifications, action.notification]
+        : state.notifications;
+      return { ...state, tasks, notifications };
     }
     case 'SET_PLANNED_DATE': {
       const tasks = state.tasks.map(t => {
@@ -168,6 +188,31 @@ function reducer(state: AppState, action: Action): AppState {
       });
       return { ...state, tasks };
     }
+    case 'ADD_ATTACHMENT': {
+      const tasks = state.tasks.map(t => {
+        if (t.id !== action.attachment.taskId) return t;
+        const entry = historyEntry(
+          t.id, action.actorId,
+          action.attachment.isLink
+            ? `Добавлена ссылка: ${action.attachment.name}`
+            : `Загружен файл: ${action.attachment.name}`
+        );
+        return { ...t, attachments: [...(t.attachments ?? []), action.attachment], history: [...t.history, entry] };
+      });
+      return { ...state, tasks };
+    }
+    case 'MARK_NOTIFICATION_READ': {
+      const notifications = state.notifications.map(n =>
+        n.id === action.notificationId ? { ...n, read: true } : n
+      );
+      return { ...state, notifications };
+    }
+    case 'MARK_ALL_READ': {
+      const notifications = state.notifications.map(n =>
+        n.userId === action.userId ? { ...n, read: true } : n
+      );
+      return { ...state, notifications };
+    }
     default:
       return state;
   }
@@ -177,6 +222,7 @@ const initialState: AppState = {
   currentUser: null,
   tasks: INITIAL_TASKS,
   users: USERS,
+  notifications: [],
 };
 
 function loadState(): AppState {
@@ -184,7 +230,12 @@ function loadState(): AppState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppState>;
-      return { ...initialState, ...parsed, currentUser: null };
+      return {
+        ...initialState,
+        ...parsed,
+        currentUser: null,
+        notifications: parsed.notifications ?? [],
+      };
     }
   } catch { /* ignore */ }
   return initialState;
@@ -201,7 +252,10 @@ interface AppContextValue {
   state: AppState;
   login: (login: string, password: string) => boolean;
   logout: () => void;
-  createTask: (data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[] }) => void;
+  createTask: (data: {
+    title: string; description: string; assignedTo: string;
+    deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
+  }) => void;
   updateStatus: (taskId: string, status: TaskStatus, meta?: string) => void;
   transferTask: (taskId: string, toUserId: string) => void;
   sendToDirectorReview: (taskId: string) => void;
@@ -214,6 +268,9 @@ interface AppContextValue {
   addChecklistItem: (taskId: string, text: string) => void;
   updateTaskTags: (taskId: string, tags: TaskTag[]) => void;
   kanbanMove: (taskId: string, status: TaskStatus) => void;
+  addAttachment: (taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) => void;
+  markNotificationRead: (notificationId: string) => void;
+  markAllRead: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -233,7 +290,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function logout() { dispatch({ type: 'LOGOUT' }); }
 
-  function createTask(data: { title: string; description: string; assignedTo: string; deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[] }) {
+  function createTask(data: {
+    title: string; description: string; assignedTo: string;
+    deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
+  }) {
     if (!state.currentUser) return;
     const id = uid();
     const nowTs = new Date().toISOString();
@@ -252,7 +312,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       comments: [],
       history: [historyEntry(id, state.currentUser.id, 'Задача создана', undefined, 'new')],
     };
-    dispatch({ type: 'CREATE_TASK', task });
+    const notifications: Notification[] = [];
+    if (data.assignedTo !== state.currentUser.id) {
+      notifications.push(makeNotif(
+        data.assignedTo, 'new_task', id, data.title,
+        `Вам назначена новая задача: «${data.title}»`
+      ));
+    }
+    dispatch({ type: 'CREATE_TASK', task, notifications });
   }
 
   function updateStatus(taskId: string, status: TaskStatus, meta?: string) {
@@ -264,7 +331,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!state.currentUser) return;
     const toUser = state.users.find(u => u.id === toUserId);
     if (!toUser) return;
-    dispatch({ type: 'TRANSFER_TASK', taskId, toUserId, actorId: state.currentUser.id, toUserName: toUser.name });
+    const task = state.tasks.find(t => t.id === taskId);
+    const notification = task
+      ? makeNotif(toUserId, 'task_transferred', taskId, task.title, `Вам передана задача: «${task.title}»`)
+      : undefined;
+    dispatch({ type: 'TRANSFER_TASK', taskId, toUserId, actorId: state.currentUser.id, toUserName: toUser.name, notification });
   }
 
   function sendToDirectorReview(taskId: string) {
@@ -274,13 +345,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function addComment(taskId: string, text: string) {
     if (!state.currentUser) return;
-    const comment: Comment = { id: uid(), taskId, authorId: state.currentUser.id, text, createdAt: new Date().toISOString() };
-    dispatch({ type: 'ADD_COMMENT', comment, taskId, actorId: state.currentUser.id });
+    const mentionedIds = parseMentions(text, state.users, state.currentUser.id);
+    const comment: Comment = {
+      id: uid(), taskId, authorId: state.currentUser.id, text,
+      createdAt: new Date().toISOString(),
+      mentions: mentionedIds.length > 0 ? mentionedIds : undefined,
+    };
+    const task = state.tasks.find(t => t.id === taskId);
+    const notifications: Notification[] = [];
+    if (task) {
+      const participants = new Set([task.assignedTo, task.createdBy]);
+      if (task.transferredTo) participants.add(task.transferredTo);
+      participants.delete(state.currentUser.id);
+      participants.forEach(userId => {
+        if (!mentionedIds.includes(userId)) {
+          notifications.push(makeNotif(
+            userId, 'new_comment', taskId, task.title,
+            `Новый комментарий в задаче «${task.title}»`
+          ));
+        }
+      });
+      mentionedIds.forEach(userId => {
+        notifications.push(makeNotif(
+          userId, 'mention', taskId, task.title,
+          `Вас упомянули в задаче «${task.title}»`
+        ));
+      });
+    }
+    dispatch({ type: 'ADD_COMMENT', comment, taskId, actorId: state.currentUser.id, notifications });
   }
 
   function directorAction(taskId: string, action: 'approve' | 'return', note?: string) {
     if (!state.currentUser) return;
-    dispatch({ type: 'DIRECTOR_ACTION', taskId, action, actorId: state.currentUser.id, note });
+    const task = state.tasks.find(t => t.id === taskId);
+    let notification: Notification | undefined;
+    if (task) {
+      if (action === 'approve') {
+        notification = makeNotif(
+          task.assignedTo, 'task_closed', taskId, task.title,
+          `Директор закрыл задачу: «${task.title}»`
+        );
+      } else {
+        notification = makeNotif(
+          task.assignedTo, 'task_returned', taskId, task.title,
+          `Директор вернул задачу на доработку: «${task.title}»`
+        );
+      }
+    }
+    dispatch({ type: 'DIRECTOR_ACTION', taskId, action, actorId: state.currentUser.id, note, notification });
   }
 
   function setPlannedDate(taskId: string, plannedDate: string) {
@@ -315,12 +427,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'KANBAN_MOVE', taskId, status, actorId: state.currentUser.id });
   }
 
+  function addAttachment(taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) {
+    if (!state.currentUser) return;
+    const attachment: Attachment = {
+      ...data,
+      id: uid(),
+      taskId,
+      uploadedBy: state.currentUser.id,
+      uploadedAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'ADD_ATTACHMENT', attachment, actorId: state.currentUser.id });
+  }
+
+  function markNotificationRead(notificationId: string) {
+    dispatch({ type: 'MARK_NOTIFICATION_READ', notificationId });
+  }
+
+  function markAllRead() {
+    if (!state.currentUser) return;
+    dispatch({ type: 'MARK_ALL_READ', userId: state.currentUser.id });
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
       sendToDirectorReview, addComment, directorAction,
       setPlannedDate, moveTaskToDay, updateDeadline, toggleChecklistItem, addChecklistItem,
-      updateTaskTags, kanbanMove,
+      updateTaskTags, kanbanMove, addAttachment, markNotificationRead, markAllRead,
     }}>
       {children}
     </AppContext.Provider>

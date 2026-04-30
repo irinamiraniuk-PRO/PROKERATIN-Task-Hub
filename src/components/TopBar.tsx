@@ -1,5 +1,7 @@
 
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import NotificationsPanel from './NotificationsPanel';
 
 interface TopBarProps {
   searchQuery: string;
@@ -16,13 +18,15 @@ function getGreeting(name: string): string {
 
 export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
   const { state, logout } = useApp();
-  const { currentUser } = state;
+  const { currentUser, notifications } = state;
+  const [showNotifications, setShowNotifications] = useState(false);
 
   if (!currentUser) return null;
 
   const color = currentUser.color ?? '#BE185D';
   const initials = currentUser.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   const isDirector = currentUser.role === 'director';
+  const unreadCount = notifications.filter(n => n.userId === currentUser.id && !n.read).length;
 
   return (
     <header style={{
@@ -71,6 +75,54 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
       </div>
 
       <div style={{ flex: 1 }} />
+
+      {/* Notifications bell */}
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setShowNotifications(v => !v)}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            border: showNotifications ? `2px solid ${color}` : '1.5px solid #E8E8E8',
+            background: showNotifications ? `${color}10` : '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 16,
+            position: 'relative',
+            transition: 'all 0.15s',
+            flexShrink: 0,
+          }}
+          title="Уведомления"
+        >
+          🔔
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              background: '#BE185D',
+              color: '#fff',
+              fontSize: 9,
+              fontWeight: 800,
+              borderRadius: 8,
+              padding: '1px 4px',
+              minWidth: 14,
+              textAlign: 'center',
+              border: '1.5px solid #fff',
+              lineHeight: '12px',
+            }}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+
+        {showNotifications && (
+          <NotificationsPanel onClose={() => setShowNotifications(false)} />
+        )}
+      </div>
 
       {/* User info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

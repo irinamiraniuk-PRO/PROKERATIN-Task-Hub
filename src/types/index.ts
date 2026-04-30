@@ -31,6 +31,14 @@ export type TaskTag =
   | 'разработка'
   | 'акция недели';
 
+export type NotificationType =
+  | 'new_task'
+  | 'task_transferred'
+  | 'task_returned'
+  | 'task_closed'
+  | 'new_comment'
+  | 'mention';
+
 export interface User {
   id: string;
   name: string;
@@ -47,6 +55,7 @@ export interface Comment {
   authorId: string;
   text: string;
   createdAt: string;
+  mentions?: string[]; // user IDs mentioned via @
 }
 
 export interface HistoryEntry {
@@ -66,6 +75,29 @@ export interface ChecklistItem {
   done: boolean;
 }
 
+export interface Attachment {
+  id: string;
+  taskId: string;
+  name: string;
+  mimeType: string;
+  url: string; // base64 data URL for files, actual URL for links
+  uploadedBy: string;
+  uploadedAt: string;
+  size?: number; // bytes
+  isLink?: boolean;
+}
+
+export interface Notification {
+  id: string;
+  userId: string; // recipient
+  type: NotificationType;
+  taskId: string;
+  taskTitle: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -81,6 +113,7 @@ export interface Task {
   comments: Comment[];
   history: HistoryEntry[];
   checklist?: ChecklistItem[];
+  attachments?: Attachment[];
   transferredTo?: string;
   transferredFrom?: string;
   sentToDirectorAt?: string;
@@ -90,4 +123,5 @@ export interface AppState {
   currentUser: User | null;
   tasks: Task[];
   users: User[];
+  notifications: Notification[];
 }

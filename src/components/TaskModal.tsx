@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Task, TaskTag } from '../types';
+import type { Task, TaskTag, User } from '../types';
 import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from './TaskCard';
 import { ALL_TAGS } from '../data/taskTags';
 
@@ -9,11 +9,64 @@ interface TaskModalProps {
   onClose: () => void;
 }
 
+// Render comment text with @mention highlights
+function CommentText({ text, users, currentUserId }: { text: string; users: User[]; currentUserId: string }) {
+  const parts = text.split(/(@[А-Яа-яЁёA-Za-z0-9]+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('@')) {
+          const word = part.slice(1);
+          const user = users.find(u => {
+            const p = u.name.split(' ');
+            return p[0] === word || u.name === word;
+          });
+          const isMe = user?.id === currentUserId;
+          return (
+            <span key={i} style={{
+              background: isMe ? '#DBEAFE' : '#F3F4F6',
+              color: isMe ? '#1D4ED8' : '#374151',
+              borderRadius: 4,
+              padding: '0 3px',
+              fontWeight: 600,
+              fontSize: '0.95em',
+            }}>
+              {part}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+function getFileIcon(mimeType: string, isLink?: boolean): string {
+  if (isLink) return '🔗';
+  if (mimeType.startsWith('image/')) return '🖼️';
+  if (mimeType === 'application/pdf') return '📄';
+  if (
+    mimeType.includes('spreadsheet') ||
+    mimeType.includes('excel') ||
+    mimeType === 'text/csv'
+  ) return '📊';
+  if (mimeType.includes('word') || mimeType.includes('document') || mimeType === 'text/plain') return '📝';
+  return '📎';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
+
+const MAX_FILE_BYTES = 300 * 1024; // 300 KB limit for localStorage safety
+
 export default function TaskModal({ task, onClose }: TaskModalProps) {
   const {
     state, updateStatus, transferTask, sendToDirectorReview,
     addComment, directorAction, setPlannedDate, updateDeadline,
-    toggleChecklistItem, addChecklistItem, updateTaskTags,
+    toggleChecklistItem, addChecklistItem, updateTaskTags, addAttachment,
   } = useApp();
   const { currentUser, users } = state;
   const [comment, setComment] = useState('');
@@ -26,7 +79,14 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const [showDeadline, setShowDeadline] = useState(false);
   const [newDeadline, setNewDeadline] = useState(task.deadline.slice(0, 10));
   const [newCheckItem, setNewCheckItem] = useState('');
-  const [activeTab, setActiveTab] = useState<'info' | 'comments' | 'history' | 'checklist'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'comments' | 'history' | 'checklist' | 'files'>('info');
+  // @mention autocomplete
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  // Files tab
+  const [linkName, setLinkName] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [fileError, setFileError] = useState('');
 
   if (!currentUser) return null;
 
@@ -43,12 +103,6 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const canAct = isAssignee || isDirector || isTransferredToMe;
 
   const otherUsers = users.filter(u => u.id !== currentUser.id);
-
-  function handleComment() {
-    if (!comment.trim()) return;
-    addComment(task.id, comment.trim());
-    setComment('');
-  }
 
   function handleTransfer() {
     if (!selectedUser) return;
@@ -80,6 +134,56 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
     if (!newCheckItem.trim()) return;
     addChecklistItem(task.id, newCheckItem.trim());
     setNewCheckItem('');
+  }
+
+  // @mention autocomplete
+  function handleCommentChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = e.target.value;
+    setComment(val);
+    const match = val.match(/@([А-Яа-яЁёA-Za-z0-9]*)$/);
+    setMentionQuery(match ? match[1] : null);
+  }
+
+  function insertMention(user: User) {
+    const firstName = user.name.split(' ')[0];
+    const newText = comment.replace(/@([А-Яа-яЁёA-Za-z0-9]*)$/, `@${firstName} `);
+    setComment(newText);
+    setMentionQuery(null);
+    commentRef.current?.focus();
+  }
+
+  const mentionSuggestions = mentionQuery !== null
+    ? users.filter(u =>
+        u.id !== currentUser?.id &&
+        u.name.split(' ')[0].toLowerCase().startsWith(mentionQuery.toLowerCase())
+      )
+    : [];
+
+  // Files
+  function handleAddLink() {
+    if (!linkUrl.trim()) return;
+    const name = linkName.trim() || linkUrl.trim();
+    addAttachment(task.id, { name, mimeType: 'text/uri-list', url: linkUrl.trim(), isLink: true });
+    setLinkName('');
+    setLinkUrl('');
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileError(''); // clear any previous error
+    if (file.size > MAX_FILE_BYTES) {
+      setFileError(`Файл слишком большой (макс. ${formatFileSize(MAX_FILE_BYTES)}). Используйте ссылку для больших файлов.`);
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const url = ev.target?.result as string;
+      addAttachment(task.id, { name: file.name, mimeType: file.type, url, size: file.size });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   }
 
   const actions: { label: string; onClick: () => void; color?: string; show: boolean }[] = [
@@ -207,13 +311,16 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #F0F0F0', padding: '0 28px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #F0F0F0', padding: '0 28px', flexShrink: 0, overflowX: 'auto' }}>
           <button style={tabStyle('info')} onClick={() => setActiveTab('info')}>Информация</button>
           <button style={tabStyle('comments')} onClick={() => setActiveTab('comments')}>
             Комментарии {task.comments.length > 0 && `(${task.comments.length})`}
           </button>
           <button style={tabStyle('checklist')} onClick={() => setActiveTab('checklist')}>
             Чек-лист {checklist.length > 0 && `(${doneCount}/${checklist.length})`}
+          </button>
+          <button style={tabStyle('files')} onClick={() => setActiveTab('files')}>
+            Файлы {(task.attachments?.length ?? 0) > 0 && `(${task.attachments!.length})`}
           </button>
           <button style={tabStyle('history')} onClick={() => setActiveTab('history')}>История</button>
         </div>
@@ -375,43 +482,101 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
           {activeTab === 'comments' && (
             <div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-                {task.comments.map(c => {
+                {[...task.comments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(c => {
                   const author = users.find(u => u.id === c.authorId);
-                  const isMe = c.authorId === currentUser.id;
+                  const isMe = c.authorId === currentUser!.id;
+                  const mentionsMe = c.mentions?.includes(currentUser!.id);
                   return (
                     <div key={c.id} style={{
-                      background: isMe ? '#EFF6FF' : '#FAFAF8', borderRadius: 8, padding: '10px 14px',
-                      border: `1px solid ${isMe ? '#BFDBFE' : '#EBEBEB'}`,
+                      background: mentionsMe ? '#FFF0F5' : isMe ? '#EFF6FF' : '#FAFAF8',
+                      borderRadius: 8, padding: '10px 14px',
+                      border: `1px solid ${mentionsMe ? '#FBCFE8' : isMe ? '#BFDBFE' : '#EBEBEB'}`,
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: isMe ? '#1D4ED8' : '#444' }}>
-                          {author?.name ?? 'Неизвестно'} {isMe ? '(Вы)' : ''}
-                        </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: isMe ? '#1D4ED8' : '#444' }}>
+                            {author?.name ?? 'Неизвестно'} {isMe ? '(Вы)' : ''}
+                          </span>
+                          {mentionsMe && (
+                            <span style={{ fontSize: 10, background: '#BE185D', color: '#fff', borderRadius: 4, padding: '1px 5px', fontWeight: 600 }}>
+                              упомянули вас
+                            </span>
+                          )}
+                        </div>
                         <span style={{ fontSize: 11, color: '#aaa' }}>
-                          {new Date(c.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(c.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>{c.text}</div>
+                      <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>
+                        <CommentText text={c.text} users={users} currentUserId={currentUser!.id} />
+                      </div>
                     </div>
                   );
                 })}
                 {task.comments.length === 0 && <div style={{ fontSize: 13, color: '#aaa' }}>Комментариев пока нет</div>}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <textarea
-                  value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  placeholder="Написать комментарий..."
-                  style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, resize: 'none', minHeight: 60, outline: 'none' }}
-                  onFocus={e => (e.target.style.borderColor = userColor)}
-                  onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
-                />
-                <button onClick={handleComment} disabled={!comment.trim()} style={{
-                  padding: '0 16px', borderRadius: 8, border: 'none', cursor: comment.trim() ? 'pointer' : 'not-allowed',
-                  background: userColor, color: '#fff', fontSize: 13, fontWeight: 600, opacity: comment.trim() ? 1 : 0.5, alignSelf: 'stretch',
-                }}>
-                  Отправить
-                </button>
+
+              {/* Comment input with @mention */}
+              <div style={{ position: 'relative' }}>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>
+                  Используйте @Имя для упоминания пользователя
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <textarea
+                    ref={commentRef}
+                    value={comment}
+                    onChange={handleCommentChange}
+                    placeholder="Написать комментарий... (@Имя для упоминания)"
+                    style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, resize: 'none', minHeight: 70, outline: 'none' }}
+                    onFocus={e => (e.target.style.borderColor = userColor)}
+                    onBlur={e => {
+                      e.target.style.borderColor = '#E0E0E0';
+                      // delay closing so click on suggestion registers
+                      setTimeout(() => setMentionQuery(null), 150);
+                    }}
+                  />
+                  <button onClick={() => { addComment(task.id, comment.trim()); setComment(''); setMentionQuery(null); }} disabled={!comment.trim()} style={{
+                    padding: '0 16px', borderRadius: 8, border: 'none', cursor: comment.trim() ? 'pointer' : 'not-allowed',
+                    background: userColor, color: '#fff', fontSize: 13, fontWeight: 600, opacity: comment.trim() ? 1 : 0.5, alignSelf: 'stretch',
+                  }}>
+                    Отправить
+                  </button>
+                </div>
+
+                {/* @mention suggestions dropdown */}
+                {mentionSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', bottom: '100%', left: 0, marginBottom: 4,
+                    background: '#fff', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    border: '1px solid #E0E0E0', overflow: 'hidden', zIndex: 10,
+                    minWidth: 180,
+                  }}>
+                    {mentionSuggestions.map(u => (
+                      <div
+                        key={u.id}
+                        onMouseDown={() => insertMention(u)}
+                        style={{
+                          padding: '8px 12px', cursor: 'pointer', fontSize: 13,
+                          display: 'flex', alignItems: 'center', gap: 8,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F0F9FF')}
+                        onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                      >
+                        <div style={{
+                          width: 24, height: 24, borderRadius: '50%',
+                          background: u.color ?? '#888', color: '#fff',
+                          fontSize: 10, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>
+                          {u.name[0]}
+                        </div>
+                        <span style={{ fontWeight: 500 }}>{u.name.split(' ')[0]}</span>
+                        <span style={{ color: '#999', fontSize: 11 }}>{u.name.split(' ').slice(1).join(' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -468,6 +633,117 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
                   }}>+ Добавить</button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* FILES TAB */}
+          {activeTab === 'files' && (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+                Файлы и материалы
+              </div>
+
+              {/* Existing attachments */}
+              {(task.attachments ?? []).length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                  {task.attachments!.map(att => {
+                    const uploader = users.find(u => u.id === att.uploadedBy);
+                    return (
+                      <div key={att.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 14px', borderRadius: 8,
+                        background: '#FAFAF8', border: '1px solid #EBEBEB',
+                      }}>
+                        <span style={{ fontSize: 22, flexShrink: 0 }}>{getFileIcon(att.mimeType, att.isLink)}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {att.isLink ? (
+                            <a href={att.url} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 600, color: '#1D4ED8', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {att.name}
+                            </a>
+                          ) : (
+                            <a href={att.url} download={att.name} style={{ fontSize: 13, fontWeight: 600, color: '#111', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {att.name}
+                            </a>
+                          )}
+                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                            {uploader?.name ?? '—'} · {new Date(att.uploadedAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            {att.size !== undefined && ` · ${formatFileSize(att.size)}`}
+                          </div>
+                        </div>
+                        {!att.isLink && (
+                          <a href={att.url} download={att.name} style={{ fontSize: 11, color: '#4A90D9', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
+                            ⬇️ Скачать
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: '#aaa', marginBottom: 20 }}>Файлов пока нет</div>
+              )}
+
+              {/* Add link */}
+              <div style={{ background: '#F8F8F8', borderRadius: 10, padding: 14, border: '1px solid #EBEBEB', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Добавить ссылку</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input
+                    value={linkName}
+                    onChange={e => setLinkName(e.target.value)}
+                    placeholder="Название ссылки (необязательно)"
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, outline: 'none' }}
+                    onFocus={e => (e.target.style.borderColor = userColor)}
+                    onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={linkUrl}
+                      onChange={e => setLinkUrl(e.target.value)}
+                      placeholder="https://..."
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E0E0E0', fontSize: 13, outline: 'none' }}
+                      onFocus={e => (e.target.style.borderColor = userColor)}
+                      onBlur={e => (e.target.style.borderColor = '#E0E0E0')}
+                      onKeyDown={e => e.key === 'Enter' && handleAddLink()}
+                    />
+                    <button onClick={handleAddLink} disabled={!linkUrl.trim()} style={{
+                      padding: '8px 14px', borderRadius: 8, border: 'none',
+                      cursor: linkUrl.trim() ? 'pointer' : 'not-allowed',
+                      background: '#4A90D9', color: '#fff', fontSize: 13, fontWeight: 600,
+                      opacity: linkUrl.trim() ? 1 : 0.5,
+                    }}>
+                      + Ссылка
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload file */}
+              <div style={{ background: '#F8F8F8', borderRadius: 10, padding: 14, border: '1px solid #EBEBEB' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  Загрузить файл
+                </div>
+                <div style={{ fontSize: 11, color: '#999', marginBottom: 10 }}>
+                  Изображения, PDF, документы, таблицы — максимум {formatFileSize(MAX_FILE_BYTES)}
+                </div>
+                <label style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '8px 14px', borderRadius: 8, border: '1.5px solid #E0E0E0',
+                  cursor: 'pointer', background: '#fff', fontSize: 13, fontWeight: 600, color: '#555',
+                }}>
+                  📎 Выбрать файл
+                  <input
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                    style={{ display: 'none' }}
+                    onChange={handleFileUpload}
+                  />
+                </label>
+                {fileError && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#B91C1C', background: '#FEE2E2', borderRadius: 6, padding: '6px 10px' }}>
+                    {fileError}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
