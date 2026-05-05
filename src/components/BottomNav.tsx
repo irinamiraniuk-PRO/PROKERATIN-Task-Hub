@@ -101,7 +101,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
           onClick={() => setShowMenu(false)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
-            zIndex: 'calc(var(--z-bottomnav) - 1)' as React.CSSProperties['zIndex'],
+            zIndex: 299,
             backdropFilter: 'blur(2px)',
           }}
         />
@@ -112,7 +112,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
           background: '#fff', borderRadius: '20px 20px 0 0',
-          zIndex: 'calc(var(--z-bottomnav) + 10)' as React.CSSProperties['zIndex'],
+          zIndex: 310,
           boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
           padding: '0 0 env(safe-area-inset-bottom, 16px)',
           maxHeight: '80vh',

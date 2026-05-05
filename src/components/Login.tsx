@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { User } from '../types';
 
-  /* ── helpers ─────────────────────────────────────── */
+/* ── helpers ─────────────────────────────────────── */
 function initials(name: string) {
   return name
     .split(' ')

@@ -96,6 +96,11 @@ function AvatarSection({ color, initials, avatar, onSave }: {
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Файл слишком большой. Максимальный размер — 2 МБ.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = ev => {
       const result = ev.target?.result as string;
@@ -127,7 +132,7 @@ function AvatarSection({ color, initials, avatar, onSave }: {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, color: '#444', marginBottom: 10 }}>
-            {preview ? 'Фото установлено. Нажмите «Изменить» для загрузки нового.' : 'Загрузите свою фотографию (JPG, PNG, до 5 МБ).'}
+            {preview ? 'Фото установлено. Нажмите «Изменить» для загрузки нового.' : 'Загрузите свою фотографию (JPG, PNG, до 2 МБ).'}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
