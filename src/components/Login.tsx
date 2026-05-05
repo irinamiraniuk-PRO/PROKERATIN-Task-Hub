@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import type { User } from '../types';
 
@@ -20,7 +20,171 @@ function hexAlpha(hex: string, alpha: number) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/* ── sub-components ──────────────────────────────── */
+/* ── WelcomeOverlay ──────────────────────────────── */
+function WelcomeOverlay({ user, leaving }: { user: User; leaving: boolean }) {
+  const color = user.color ?? '#BE185D';
+  const firstName = user.name.split(' ')[0];
+  const isDirector = user.role === 'director';
+
+  const subtitle = isDirector
+    ? 'Открываем панель управления командой…'
+    : 'Загружаем твой рабочий день…';
+
+  return (
+    <div
+      className={leaving ? 'welcome-overlay-leave' : 'welcome-overlay-enter'}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 20px',
+        background: 'rgba(255,255,255,0.88)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Radial ambient glow */}
+      <div style={{
+        position: 'absolute',
+        width: 480,
+        height: 480,
+        borderRadius: '50%',
+        background: `radial-gradient(circle, ${hexAlpha(color, 0.18)} 0%, transparent 70%)`,
+        animation: 'welcomeGlowPulse 2.4s ease-in-out infinite',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Thin progress line at top */}
+      <div style={{
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: 3,
+        background: `linear-gradient(90deg, ${color}, ${hexAlpha(color, 0.4)})`,
+        transformOrigin: 'left center',
+        animation: 'progressLine 1.45s cubic-bezier(0.4,0,0.2,1) both',
+        className: 'welcome-progress',
+      } as React.CSSProperties} />
+
+      {/* Content card */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 0,
+        textAlign: 'center',
+        position: 'relative',
+        zIndex: 1,
+      }}>
+
+        {/* Avatar */}
+        <div
+          className="welcome-avatar-anim"
+          style={{
+            width: 108,
+            height: 108,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            background: `linear-gradient(135deg, ${color}, ${hexAlpha(color, 0.6)})`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: 36,
+            fontWeight: 800,
+            letterSpacing: '-1px',
+            boxShadow: `0 0 0 10px ${hexAlpha(color, 0.1)}, 0 20px 60px ${hexAlpha(color, 0.45)}`,
+            animation: 'welcomeAvatarIn 0.55s cubic-bezier(0.34,1.56,0.64,1) 0s both',
+            marginBottom: 22,
+            flexShrink: 0,
+          }}
+        >
+          {user.avatar
+            ? <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : initials(user.name)
+          }
+        </div>
+
+        {/* "Добро пожаловать" */}
+        <div
+          className="welcome-text-anim"
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: '#ADADAD',
+            letterSpacing: '0.1px',
+            animation: 'welcomeTextIn 0.4s ease 0.28s both',
+            marginBottom: 4,
+          }}
+        >
+          Добро пожаловать
+        </div>
+
+        {/* Name */}
+        <div
+          className="welcome-text-anim"
+          style={{
+            fontSize: 32,
+            fontWeight: 800,
+            color: '#1A1A1A',
+            letterSpacing: '-1px',
+            lineHeight: 1.15,
+            animation: 'welcomeTextIn 0.45s cubic-bezier(0.16,1,0.3,1) 0.36s both',
+            marginBottom: 14,
+          }}
+        >
+          {firstName} {isDirector && <span style={{ color }}>✦</span>}
+        </div>
+
+        {/* Subtitle */}
+        <div
+          className="welcome-text-anim"
+          style={{
+            fontSize: 14,
+            color: '#888',
+            fontWeight: 500,
+            maxWidth: 280,
+            lineHeight: 1.5,
+            animation: 'welcomeTextIn 0.4s ease 0.54s both',
+            marginBottom: 28,
+          }}
+        >
+          {subtitle}
+        </div>
+
+        {/* Loading dots */}
+        <div
+          className="welcome-text-anim"
+          style={{
+            display: 'flex',
+            gap: 8,
+            animation: 'welcomeTextIn 0.3s ease 0.7s both',
+          }}
+        >
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className="welcome-dot"
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: color,
+                animation: `dotBounce 1.1s ease ${i * 0.14}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── UserCard ────────────────────────────────────── */
 interface UserCardProps {
   user: User;
   selected: boolean;
@@ -130,27 +294,40 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
 }
 
 /* ── main component ──────────────────────────────── */
+type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
+
 export default function Login() {
   const { state, login } = useApp();
   const users = state.users;
 
-  const [step, setStep] = useState<'select' | 'password'>('select');
+  const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [enteringUser, setEnteringUser] = useState<User | null>(null);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const color = selectedUser?.color ?? '#BE185D';
 
+  /* Kick off login after overlay fully plays */
+  useEffect(() => {
+    if (phase !== 'welcome-in') return;
+    const t1 = setTimeout(() => setPhase('welcome-out'), 1100);
+    const t2 = setTimeout(() => {
+      if (enteringUser) login(enteringUser.login, enteringUser.password);
+    }, 1550);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [phase, enteringUser, login]);
+
   function handleSelectUser(user: User) {
     setSelectedUser(user);
     setPassword('');
     setError('');
-    setStep('password');
+    setPhase('password');
   }
 
   function handleBack() {
-    setStep('select');
+    setPhase('select');
     setSelectedUser(null);
     setError('');
     setPassword('');
@@ -159,239 +336,255 @@ export default function Login() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedUser) return;
+
+    // Verify credentials locally so we can show animation before committing
+    const matched = users.find(u => u.login === selectedUser.login && u.password === password);
+    if (!matched) {
+      setError('Неверный пароль. Попробуйте ещё раз.');
+      setSubmitting(false);
+      return;
+    }
+
     setSubmitting(true);
-    setTimeout(() => {
-      const ok = login(selectedUser.login, password);
-      if (!ok) {
-        setError('Неверный пароль. Попробуйте ещё раз.');
-        setSubmitting(false);
-      }
-    }, 300);
+    setEnteringUser(matched);
+    setPhase('welcome-in');
   }
 
+  const showOverlay = phase === 'welcome-in' || phase === 'welcome-out';
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(145deg, #FBF7FF 0%, #FEFEFE 50%, #F5F8FF 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'var(--font)',
-      padding: 24,
-    }}>
-      {/* Logo */}
-      <div className="anim-fade-in" style={{ textAlign: 'center', marginBottom: 44 }}>
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 52,
-          height: 52,
-          borderRadius: 14,
-          background: 'linear-gradient(135deg, #BE185D, #DB2777)',
-          boxShadow: '0 8px 28px rgba(190,24,93,0.3)',
-          marginBottom: 16,
-        }}>
-          <span style={{ fontSize: 22, color: '#fff' }}>✦</span>
-        </div>
-        <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.8px', color: '#1A1A1A' }}>
-          PROKERATIN
-        </div>
-        <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5, fontWeight: 400 }}>
-          Система управления задачами
-        </div>
-      </div>
-
-      {/* ── STEP 1: User selection ── */}
-      {step === 'select' && (
-        <div className="anim-scale-in" style={{ width: '100%', maxWidth: 720 }}>
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>Выберите свой профиль</div>
-            <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
-          </div>
-
-          <div
-            className="stagger"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 16,
-              justifyContent: 'center',
-            }}
-          >
-            {users.map(user => (
-              <div key={user.id} className="anim-scale-in">
-                <UserCard
-                  user={user}
-                  selected={false}
-                  onClick={() => handleSelectUser(user)}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: 36, fontSize: 11, color: '#D8D5D1' }}>
-            PROKERATIN Task Hub • {new Date().getFullYear()}
-          </div>
-        </div>
+    <>
+      {/* ── Welcome overlay (portal-style fixed) ── */}
+      {showOverlay && enteringUser && (
+        <WelcomeOverlay user={enteringUser} leaving={phase === 'welcome-out'} />
       )}
 
-      {/* ── STEP 2: Password entry ── */}
-      {step === 'password' && selectedUser && (
-        <div className="anim-scale-in" style={{ width: '100%', maxWidth: 380 }}>
-          {/* Selected user preview */}
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(145deg, #FBF7FF 0%, #FEFEFE 50%, #F5F8FF 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--font)',
+        padding: 24,
+      }}>
+        {/* Logo */}
+        <div className="anim-fade-in" style={{ textAlign: 'center', marginBottom: 44 }}>
           <div style={{
-            display: 'flex',
-            flexDirection: 'column',
+            display: 'inline-flex',
             alignItems: 'center',
-            marginBottom: 28,
-            gap: 10,
+            justifyContent: 'center',
+            width: 52,
+            height: 52,
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, #BE185D, #DB2777)',
+            boxShadow: '0 8px 28px rgba(190,24,93,0.3)',
+            marginBottom: 16,
           }}>
-            <div style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              background: `linear-gradient(135deg, ${color}, ${hexAlpha(color, 0.6)})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 28,
-              fontWeight: 800,
-              boxShadow: `0 6px 24px ${hexAlpha(color, 0.4)}`,
-              animation: 'avatarPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
-            }}>
-              {selectedUser.avatar
-                ? <img src={selectedUser.avatar} alt={selectedUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : initials(selectedUser.name)
-              }
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>{selectedUser.name}</div>
-            {selectedUser.role === 'director' && (
-              <div style={{
-                background: color,
-                color: '#fff',
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: '0.6px',
-                textTransform: 'uppercase',
-                padding: '3px 12px',
-                borderRadius: 20,
-              }}>
-                👑 Директор
-              </div>
-            )}
+            <span style={{ fontSize: 22, color: '#fff' }}>✦</span>
           </div>
+          <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.8px', color: '#1A1A1A' }}>
+            PROKERATIN
+          </div>
+          <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5, fontWeight: 400 }}>
+            Система управления задачами
+          </div>
+        </div>
 
-          {/* Password card */}
-          <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: '28px 24px',
-            boxShadow: '0 4px 32px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
-            border: '1px solid #EEECEA',
-          }}>
-            <form onSubmit={handleLogin}>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#888',
-                  marginBottom: 8,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}>
-                  Пароль
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => { setPassword(e.target.value); setError(''); }}
-                  placeholder="Введите пароль"
-                  autoFocus
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    border: `1.5px solid ${error ? '#FECACA' : '#E8E8E8'}`,
-                    borderRadius: 10,
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    background: '#FAFAFA',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = color)}
-                  onBlur={e => (e.target.style.borderColor = error ? '#FECACA' : '#E8E8E8')}
-                />
+        {/* ── STEP 1: User selection ── */}
+        {(phase === 'select') && (
+          <div className="anim-scale-in" style={{ width: '100%', maxWidth: 720 }}>
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>Выберите свой профиль</div>
+              <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
+            </div>
+
+            <div
+              className="stagger"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 16,
+                justifyContent: 'center',
+              }}
+            >
+              {users.map(user => (
+                <div key={user.id} className="anim-scale-in">
+                  <UserCard
+                    user={user}
+                    selected={false}
+                    onClick={() => handleSelectUser(user)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: 36, fontSize: 11, color: '#D8D5D1' }}>
+              PROKERATIN Task Hub • {new Date().getFullYear()}
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 2: Password entry ── */}
+        {(phase === 'password' || phase === 'welcome-in' || phase === 'welcome-out') && selectedUser && (
+          <div className="anim-scale-in" style={{ width: '100%', maxWidth: 380 }}>
+            {/* Selected user preview */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              marginBottom: 28,
+              gap: 10,
+            }}>
+              <div style={{
+                width: 80,
+                height: 80,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                background: `linear-gradient(135deg, ${color}, ${hexAlpha(color, 0.6)})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: 28,
+                fontWeight: 800,
+                boxShadow: `0 6px 24px ${hexAlpha(color, 0.4)}`,
+                animation: 'avatarPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+              }}>
+                {selectedUser.avatar
+                  ? <img src={selectedUser.avatar} alt={selectedUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : initials(selectedUser.name)
+                }
               </div>
-
-              {error && (
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>{selectedUser.name}</div>
+              {selectedUser.role === 'director' && (
                 <div style={{
-                  background: '#FEF2F2',
-                  color: '#B91C1C',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  fontSize: 13,
-                  marginBottom: 16,
-                  animation: 'fadeIn 0.25s ease',
+                  background: color,
+                  color: '#fff',
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  padding: '3px 12px',
+                  borderRadius: 20,
                 }}>
-                  {error}
+                  👑 Директор
                 </div>
               )}
+            </div>
 
+            {/* Password card */}
+            <div style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: '28px 24px',
+              boxShadow: '0 4px 32px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)',
+              border: '1px solid #EEECEA',
+            }}>
+              <form onSubmit={handleLogin}>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#888',
+                    marginBottom: 8,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}>
+                    Пароль
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => { setPassword(e.target.value); setError(''); }}
+                    placeholder="Введите пароль"
+                    autoFocus
+                    disabled={submitting}
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      border: `1.5px solid ${error ? '#FECACA' : '#E8E8E8'}`,
+                      borderRadius: 10,
+                      fontSize: 14,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      background: '#FAFAFA',
+                      transition: 'border-color 0.2s',
+                    }}
+                    onFocus={e => (e.target.style.borderColor = color)}
+                    onBlur={e => (e.target.style.borderColor = error ? '#FECACA' : '#E8E8E8')}
+                  />
+                </div>
+
+                {error && (
+                  <div style={{
+                    background: '#FEF2F2',
+                    color: '#B91C1C',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    marginBottom: 16,
+                    animation: 'fadeIn 0.25s ease',
+                  }}>
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting || !password}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    background: submitting ? hexAlpha(color, 0.6) : color,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 10,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: submitting || !password ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    letterSpacing: '0.2px',
+                    boxShadow: `0 4px 16px ${hexAlpha(color, 0.3)}`,
+                  }}
+                  onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = hexAlpha(color, 0.85); }}
+                  onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = color; }}
+                >
+                  {submitting ? 'Входим…' : 'Войти'}
+                </button>
+              </form>
+            </div>
+
+            {/* Back */}
+            {phase === 'password' && (
               <button
-                type="submit"
-                disabled={submitting || !password}
+                onClick={handleBack}
                 style={{
-                  width: '100%',
-                  padding: '13px',
-                  background: submitting ? hexAlpha(color, 0.6) : color,
-                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  margin: '18px auto 0',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: 10,
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: submitting || !password ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  letterSpacing: '0.2px',
-                  boxShadow: `0 4px 16px ${hexAlpha(color, 0.3)}`,
+                  color: '#999',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  transition: 'color 0.15s',
                 }}
-                onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = hexAlpha(color, 0.85); }}
-                onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = color; }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#555')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#999')}
               >
-                {submitting ? 'Входим...' : 'Войти'}
+                ← Выбрать другой профиль
               </button>
-            </form>
+            )}
           </div>
-
-          {/* Back */}
-          <button
-            onClick={handleBack}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              margin: '18px auto 0',
-              background: 'none',
-              border: 'none',
-              color: '#999',
-              fontSize: 13,
-              cursor: 'pointer',
-              fontWeight: 500,
-              padding: '6px 12px',
-              borderRadius: 8,
-              transition: 'color 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#555')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#999')}
-          >
-            ← Выбрать другой профиль
-          </button>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

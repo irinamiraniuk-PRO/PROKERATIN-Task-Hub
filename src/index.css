@@ -105,6 +105,58 @@ button, input, select, textarea {
   50%       { transform: scale(1.04); }
 }
 
+/* ── Welcome overlay animations ─────────────────── */
+
+@keyframes welcomeOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes welcomeOverlayOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes welcomeAvatarIn {
+  0%   { opacity: 0; transform: scale(0.4) translateY(24px); }
+  65%  { opacity: 1; transform: scale(1.1) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+@keyframes welcomeGlowPulse {
+  0%, 100% { transform: scale(1);    opacity: 0.5; }
+  50%       { transform: scale(1.18); opacity: 0.25; }
+}
+
+@keyframes welcomeTextIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dotBounce {
+  0%, 60%, 100% { transform: translateY(0);   opacity: 0.35; }
+  30%            { transform: translateY(-9px); opacity: 1; }
+}
+
+@keyframes progressLine {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Welcome overlay: fade in/out states */
+.welcome-overlay-enter { animation: welcomeOverlayIn  0.32s cubic-bezier(0.16,1,0.3,1) both; }
+.welcome-overlay-leave { animation: welcomeOverlayOut 0.38s ease both; }
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-overlay-enter,
+  .welcome-overlay-leave { animation: none !important; }
+  .welcome-avatar-anim   { animation: none !important; }
+  .welcome-text-anim     { animation: none !important; }
+  .welcome-dot           { animation: none !important; }
+  .welcome-progress      { animation: none !important; }
+}
+
 /* Utility classes */
 .anim-fade-in     { animation: fadeIn         0.3s ease both; }
 .anim-fade-in-up  { animation: fadeInUp       0.35s ease both; }
