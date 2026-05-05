@@ -139,61 +139,74 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
   const todayStr = toISODateStr(now);
 
   return (
-    <div style={{ padding: '24px 24px', height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="week-planner-root" style={{ padding: '16px 16px', height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
         <div>
-          <h1 style={{ margin: '0 0 3px', fontSize: 20, fontWeight: 700, color: '#111' }}>📅 Планер недели</h1>
+          <h1 style={{ margin: '0 0 3px', fontSize: 18, fontWeight: 700, color: '#111' }}>📅 Планер недели</h1>
           <div style={{ fontSize: 12, color: '#888' }}>
             {toDateStr(monday)} — {toDateStr(addDays(monday, 6))}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button
             onClick={() => setWeekOffset(w => w - 1)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 14 }}
-          >← Пред.</button>
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 13 }}
+          >←</button>
           <button
             onClick={() => setWeekOffset(0)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #BE185D', background: weekOffset === 0 ? '#BE185D' : '#fff', color: weekOffset === 0 ? '#fff' : '#BE185D', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #BE185D', background: weekOffset === 0 ? '#BE185D' : '#fff', color: weekOffset === 0 ? '#fff' : '#BE185D', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
           >Сегодня</button>
           <button
             onClick={() => setWeekOffset(w => w + 1)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 14 }}
-          >След. →</button>
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 13 }}
+          >→</button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flex: 1, overflow: 'hidden' }}>
-        {/* Unplanned sidebar */}
-        <div
-          onDragOver={e => e.preventDefault()}
-          onDrop={handleDropUnplanned}
-          style={{
-            width: 190, flexShrink: 0, background: '#FAFAF8', borderRadius: 12,
-            border: '1.5px dashed #D1D5DB', display: 'flex', flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid #EBEBEB', background: '#F3F4F6', borderRadius: '12px 12px 0 0' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>📋 Незапланированные</div>
-            <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{unplanned.length} задач</div>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
+      {/* Unplanned strip (horizontal on mobile) */}
+      <div
+        className="week-unplanned-strip"
+        onDragOver={e => e.preventDefault()}
+        onDrop={handleDropUnplanned}
+        style={{
+          background: '#FAFAF8', borderRadius: 10,
+          border: '1.5px dashed #D1D5DB',
+          marginBottom: 10, flexShrink: 0,
+        }}
+      >
+        <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#555', flexShrink: 0 }}>📋 Незапланированные ({unplanned.length})</div>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1 }}>
             {unplanned.length === 0
-              ? <div style={{ fontSize: 11, color: '#ccc', textAlign: 'center', padding: '20px 0' }}>Все задачи запланированы 🎉</div>
-              : unplanned.map(t => (
-                <MiniTaskCard key={t.id} task={t} onClick={setSelectedTask} onDragStart={handleDragStart} />
+              ? <div style={{ fontSize: 11, color: '#ccc' }}>Все задачи запланированы 🎉</div>
+              : unplanned.slice(0, 8).map(t => (
+                <div
+                  key={t.id}
+                  draggable
+                  onDragStart={e => handleDragStart(e, t)}
+                  onClick={() => setSelectedTask(t)}
+                  style={{
+                    background: '#fff', borderRadius: 6, padding: '4px 8px',
+                    border: '1px solid #E8E8E8', cursor: 'grab', fontSize: 11,
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  }}
+                >
+                  {t.title.length > 22 ? t.title.slice(0, 22) + '…' : t.title}
+                </div>
               ))
             }
-          </div>
-          <div style={{ padding: '8px 10px', fontSize: 10, color: '#bbb', borderTop: '1px solid #EBEBEB', textAlign: 'center' }}>
-            Перетащите задачи сюда
+            {unplanned.length > 8 && (
+              <div style={{ fontSize: 11, color: '#999', alignSelf: 'center', flexShrink: 0 }}>+{unplanned.length - 8} ещё</div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Week columns */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, overflow: 'hidden' }}>
+      {/* Week columns — horizontally scrollable on mobile */}
+      <div className="week-columns-wrapper" style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(150px, 1fr))', gap: 6, height: '100%', minWidth: 0 }}>
           {weekDays.map((dayDate, i) => {
             const dayStr = weekDayStrs[i];
             const isToday = dayStr === todayStr;
@@ -212,12 +225,14 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
                   background: isOver ? '#FFF0F7' : isToday ? '#FFF0F7' : '#fff',
                   display: 'flex', flexDirection: 'column', overflow: 'hidden',
                   transition: 'all 0.15s',
+                  minWidth: 0,
                 }}
               >
                 {/* Day header */}
                 <div style={{
                   padding: '8px 10px', borderBottom: '1px solid #F0F0F0',
                   background: isToday ? '#BE185D' : '#FAFAF8',
+                  flexShrink: 0,
                 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? '#fff' : '#333' }}>{DAY_NAMES[i]}</div>
                   <div style={{ fontSize: 11, color: isToday ? 'rgba(255,255,255,0.8)' : '#999', marginTop: 1 }}>
@@ -238,7 +253,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
 
                 {/* Drop hint */}
                 {isOver && (
-                  <div style={{ padding: '6px', textAlign: 'center', fontSize: 11, color: '#BE185D', borderTop: '1px solid #FBCFE8', background: '#FFF0F7' }}>
+                  <div style={{ padding: '6px', textAlign: 'center', fontSize: 11, color: '#BE185D', borderTop: '1px solid #FBCFE8', background: '#FFF0F7', flexShrink: 0 }}>
                     Бросить сюда
                   </div>
                 )}
@@ -249,12 +264,10 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
       </div>
 
       {/* Legend */}
-      <div style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center', fontSize: 11, color: '#aaa', flexShrink: 0 }}>
+      <div className="week-legend" style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center', fontSize: 11, color: '#aaa', flexShrink: 0, flexWrap: 'wrap' }}>
         <span>💡 Перетаскивайте задачи между днями</span>
-        <span>•</span>
-        <span>Незапланированные задачи — в левой колонке</span>
-        <span>•</span>
-        <span>Всего в планере: {myTasks.length} задач</span>
+        <span className="week-legend-sep">•</span>
+        <span>Всего: {myTasks.length} задач</span>
       </div>
 
       {selectedTask && (

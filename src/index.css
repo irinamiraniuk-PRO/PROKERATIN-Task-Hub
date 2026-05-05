@@ -210,22 +210,25 @@ button, input, select, textarea {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: rgba(255,255,255,0.95);
+    background: rgba(255,255,255,0.97);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
     z-index: var(--z-bottomnav);
-    padding: 6px 4px env(safe-area-inset-bottom, 6px);
+    padding: 8px 4px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
     justify-content: space-around;
     align-items: center;
     box-shadow: 0 -2px 16px rgba(0,0,0,0.07);
+    /* Ensure bottom nav stays at physical bottom even with browser chrome */
+    min-height: 56px;
   }
 }
 
 /* Main content padding at bottom on mobile (for bottom nav) */
 @media (max-width: 640px) {
   .main-scroll-area {
-    padding-bottom: 72px !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   }
   .topbar-greeting { display: none; }
   .topbar-user-name { display: none; }
@@ -253,20 +256,41 @@ button, input, select, textarea {
   .responsive-grid-3 { grid-template-columns: 1fr; gap: 10px; }
 }
 
+.responsive-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1100px) {
+  .responsive-grid-4 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .responsive-grid-4 { grid-template-columns: 1fr; gap: 10px; }
+}
+
 /* Modal fullscreen on mobile */
 @media (max-width: 640px) {
   .modal-fullscreen-mobile {
-    max-height: 100vh !important;
+    max-height: 100dvh !important;
     width: 100% !important;
     max-width: 100% !important;
     border-radius: 0 !important;
     margin: 0 !important;
-    height: 100% !important;
+    height: 100dvh !important;
+    overflow-y: auto !important;
   }
   .modal-overlay-mobile {
     padding: 0 !important;
     align-items: flex-start !important;
   }
+}
+
+/* Week planner mobile tweaks */
+@media (max-width: 640px) {
+  .week-planner-root {
+    padding: 12px 10px !important;
+  }
+  .week-legend-sep { display: none; }
 }
 
 /* Button micro-animations */
@@ -278,4 +302,9 @@ button, input, select, textarea {
 }
 .btn-primary:active {
   transform: scale(0.98) !important;
+}
+
+/* Global no-x-overflow guard for main content */
+.main-scroll-area > * {
+  max-width: 100%;
 }

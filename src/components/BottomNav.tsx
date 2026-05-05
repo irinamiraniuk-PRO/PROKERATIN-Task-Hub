@@ -86,6 +86,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
       title: 'Управление',
       items: [
         { id: 'archive', label: 'Архив', icon: '▣' },
+        { id: 'notes', label: 'Заметки', icon: '📝' },
         { id: 'settings', label: 'Настройки', icon: '◌' },
         { id: 'knowledge-base', label: 'База знаний', icon: '◦' },
         { id: 'onboarding', label: 'Онбординг', icon: '◇' },
@@ -123,22 +124,32 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
           <div style={{ padding: '12px 20px 8px', borderBottom: '1px solid #F1F0EE', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: '#E0DFDD', margin: '0 auto 12px' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Mini logo */}
                 <div style={{
-                  width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',
-                  background: `linear-gradient(135deg, ${userColor}, ${userColor}99)`,
+                  width: 28, height: 28, borderRadius: 7,
+                  background: 'linear-gradient(135deg, #BE185D, #DB2777)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0,
-                }}>
-                  {currentUser.avatar
-                    ? <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : userInitials
-                  }
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>{currentUser.name}</div>
-                  <div style={{ fontSize: 11, color: isDirector ? userColor : '#ADADAD', fontWeight: isDirector ? 600 : 400 }}>
-                    {isDirector ? '👑 Директор' : 'Сотрудник'}
+                  fontSize: 13, fontWeight: 900, color: '#fff',
+                  boxShadow: '0 2px 8px rgba(190,24,93,0.3)', flexShrink: 0,
+                }}>P</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',
+                    background: `linear-gradient(135deg, ${userColor}, ${userColor}99)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0,
+                  }}>
+                    {currentUser.avatar
+                      ? <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : userInitials
+                    }
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>{currentUser.name}</div>
+                    <div style={{ fontSize: 11, color: isDirector ? userColor : '#ADADAD', fontWeight: isDirector ? 600 : 400 }}>
+                      {isDirector ? '👑 Директор' : 'Сотрудник'}
+                    </div>
                   </div>
                 </div>
               </div>

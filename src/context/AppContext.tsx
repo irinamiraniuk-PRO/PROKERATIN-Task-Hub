@@ -1,14 +1,14 @@
-import { createContext, useContext, useReducer, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
-  RecurrenceType, Project,
+  RecurrenceType, Project, Note, UserKBArticle,
 } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v8';
+const LS_KEY = 'prokeratin_state_v9';
 
 type Action =
   | { type: 'LOGIN'; user: User }
@@ -34,7 +34,13 @@ type Action =
   | { type: 'UPDATE_TASK_DEPS'; taskId: string; dependsOn: string[] }
   | { type: 'CREATE_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; projectId: string; patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>> }
-  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'password' | 'avatar'>> };
+  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'password' | 'avatar'>> }
+  | { type: 'CREATE_NOTE'; note: Note }
+  | { type: 'UPDATE_NOTE'; noteId: string; patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>> }
+  | { type: 'DELETE_NOTE'; noteId: string }
+  | { type: 'ADD_USER_KB_ARTICLE'; article: UserKBArticle }
+  | { type: 'UPDATE_USER_KB_ARTICLE'; articleId: string; patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>> }
+  | { type: 'DELETE_USER_KB_ARTICLE'; articleId: string };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -314,6 +320,26 @@ function reducer(state: AppState, action: Action): AppState {
         : state.currentUser;
       return { ...state, users, currentUser };
     }
+    case 'CREATE_NOTE':
+      return { ...state, notes: [action.note, ...state.notes] };
+    case 'UPDATE_NOTE': {
+      const notes = state.notes.map(n =>
+        n.id === action.noteId ? { ...n, ...action.patch, updatedAt: new Date().toISOString() } : n
+      );
+      return { ...state, notes };
+    }
+    case 'DELETE_NOTE':
+      return { ...state, notes: state.notes.filter(n => n.id !== action.noteId) };
+    case 'ADD_USER_KB_ARTICLE':
+      return { ...state, userKBArticles: [action.article, ...state.userKBArticles] };
+    case 'UPDATE_USER_KB_ARTICLE': {
+      const userKBArticles = state.userKBArticles.map(a =>
+        a.id === action.articleId ? { ...a, ...action.patch, updatedAt: new Date().toISOString() } : a
+      );
+      return { ...state, userKBArticles };
+    }
+    case 'DELETE_USER_KB_ARTICLE':
+      return { ...state, userKBArticles: state.userKBArticles.filter(a => a.id !== action.articleId) };
     default:
       return state;
   }
@@ -325,19 +351,27 @@ const initialState: AppState = {
   users: USERS,
   notifications: [],
   projects: INITIAL_PROJECTS,
+  notes: [],
+  userKBArticles: [],
 };
 
 function loadState(): AppState {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<AppState>;
+      const parsed = JSON.parse(raw) as Partial<AppState> & { currentUserId?: string };
+      const users = (parsed.users ?? USERS) as User[];
+      const savedUser = parsed.currentUserId
+        ? (users.find(u => u.id === parsed.currentUserId) ?? null)
+        : null;
       return {
         ...initialState,
         ...parsed,
-        currentUser: null,
+        currentUser: savedUser,
         notifications: parsed.notifications ?? [],
         projects: parsed.projects ?? INITIAL_PROJECTS,
+        notes: parsed.notes ?? [],
+        userKBArticles: parsed.userKBArticles ?? [],
       };
     }
   } catch { /* ignore */ }
@@ -346,8 +380,11 @@ function loadState(): AppState {
 
 function saveState(state: AppState) {
   try {
-    const { currentUser: _cu, ...rest } = state;
-    localStorage.setItem(LS_KEY, JSON.stringify(rest));
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      ...state,
+      currentUserId: state.currentUser?.id ?? null,
+      currentUser: undefined, // don't double-store, restored via currentUserId
+    }));
   } catch { /* ignore */ }
 }
 
@@ -383,16 +420,72 @@ interface AppContextValue {
   updateProject: (projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) => void;
   updateUserPassword: (currentPassword: string, newPassword: string) => boolean;
   updateUserAvatar: (avatar: string) => void;
+  createNote: (data: { title: string; content: string; emoji: string; color: string }) => void;
+  updateNote: (noteId: string, patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>>) => void;
+  deleteNote: (noteId: string) => void;
+  addUserKBArticle: (data: Omit<UserKBArticle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
+  updateUserKBArticle: (articleId: string, patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>>) => void;
+  deleteUserKBArticle: (articleId: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
+/* ── Sound / browser-notification helpers ─── */
+function playNotificationSound() {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+    setTimeout(() => ctx.close(), 500);
+  } catch { /* ignore */ }
+}
+
+function showBrowserNotification(title: string, body: string) {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+    try { new Notification(title, { body, icon: '/favicon.ico' }); } catch { /* ignore */ }
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const prevUnreadCountRef = useRef<number>(0);
 
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Request browser notification permission once on mount
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => { /* ignore */ });
+    }
+  }, []);
+
+  // Play sound & show browser notification when new unread notifications arrive
+  useEffect(() => {
+    if (!state.currentUser) { prevUnreadCountRef.current = 0; return; }
+    const myUnread = state.notifications.filter(
+      n => n.userId === state.currentUser!.id && !n.read
+    );
+    if (myUnread.length > prevUnreadCountRef.current) {
+      playNotificationSound();
+      const latest = [...myUnread].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+      if (latest) showBrowserNotification(latest.taskTitle, latest.message);
+    }
+    prevUnreadCountRef.current = myUnread.length;
+  }, [state.notifications, state.currentUser]);
 
   function login(loginVal: string, password: string): boolean {
     const user = state.users.find(u => u.login === loginVal && u.password === password);
@@ -627,6 +720,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { avatar } });
   }
 
+  function createNote(data: { title: string; content: string; emoji: string; color: string }) {
+    if (!state.currentUser) return;
+    const note: Note = {
+      id: uid(),
+      userId: state.currentUser.id,
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'CREATE_NOTE', note });
+  }
+
+  function updateNote(noteId: string, patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>>) {
+    dispatch({ type: 'UPDATE_NOTE', noteId, patch });
+  }
+
+  function deleteNote(noteId: string) {
+    dispatch({ type: 'DELETE_NOTE', noteId });
+  }
+
+  function addUserKBArticle(data: Omit<UserKBArticle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
+    if (!state.currentUser) return;
+    const article: UserKBArticle = {
+      id: uid(),
+      userId: state.currentUser.id,
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    dispatch({ type: 'ADD_USER_KB_ARTICLE', article });
+  }
+
+  function updateUserKBArticle(articleId: string, patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>>) {
+    dispatch({ type: 'UPDATE_USER_KB_ARTICLE', articleId, patch });
+  }
+
+  function deleteUserKBArticle(articleId: string) {
+    dispatch({ type: 'DELETE_USER_KB_ARTICLE', articleId });
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
@@ -636,6 +769,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addAttachment, markNotificationRead, markAllRead,
       updateTaskProject, updateTaskDeps, createProject, updateProject,
       updateUserPassword, updateUserAvatar,
+      createNote, updateNote, deleteNote,
+      addUserKBArticle, updateUserKBArticle, deleteUserKBArticle,
     }}>
       {children}
     </AppContext.Provider>
