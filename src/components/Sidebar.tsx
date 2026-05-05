@@ -255,6 +255,7 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
             width: 30,
             height: 30,
             borderRadius: '50%',
+            overflow: 'hidden',
             background: `linear-gradient(135deg, ${userColor}, ${userColor}AA)`,
             display: 'flex',
             alignItems: 'center',
@@ -265,7 +266,10 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
             flexShrink: 0,
             boxShadow: `0 1px 5px ${userColor}35`,
           }}>
-            {initials}
+            {currentUser.avatar
+              ? <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : initials
+            }
           </div>
           <div style={{ overflow: 'hidden', flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.1px' }}>

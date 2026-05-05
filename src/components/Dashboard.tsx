@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
+import type { View } from './Sidebar';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
 import { isStuck, getSmartHints, type SmartHint } from '../utils/taskAlerts';
@@ -36,17 +37,24 @@ function isInCurrentWeek(iso: string, monday: Date): boolean {
   return dLocal >= monday && dLocal <= sunday;
 }
 
-function StatCard({ label, value, sub, color, emoji, highlight }: {
-  label: string; value: number | string; sub?: string; color: string; emoji?: string; highlight?: boolean;
+function StatCard({ label, value, sub, color, emoji, highlight, onClick }: {
+  label: string; value: number | string; sub?: string; color: string; emoji?: string; highlight?: boolean; onClick?: () => void;
 }) {
   return (
-    <div style={{
-      background: highlight ? color : '#fff',
-      borderRadius: 10,
-      padding: '14px 16px',
-      border: highlight ? 'none' : '1px solid #EEECEA',
-      boxShadow: highlight ? `0 4px 16px ${color}35` : '0 1px 3px rgba(0,0,0,0.04)',
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        background: highlight ? color : '#fff',
+        borderRadius: 10,
+        padding: '14px 16px',
+        border: highlight ? 'none' : '1px solid #EEECEA',
+        boxShadow: highlight ? `0 4px 16px ${color}35` : '0 1px 3px rgba(0,0,0,0.04)',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: onClick ? 'opacity 0.15s, transform 0.15s' : undefined,
+      }}
+      onMouseEnter={onClick ? e => { (e.currentTarget as HTMLDivElement).style.opacity = '0.85'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'; } : undefined}
+      onMouseLeave={onClick ? e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; (e.currentTarget as HTMLDivElement).style.transform = ''; } : undefined}
+    >
       <div style={{
         fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px',
         marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4,
@@ -229,7 +237,7 @@ function SmartHintsPanel({ hints, onTaskClick }: { hints: SmartHint[]; onTaskCli
   );
 }
 
-export default function Dashboard({ searchQuery }: { searchQuery: string }) {
+export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: string; onViewChange?: (view: View) => void }) {
   const { state } = useApp();
   const { tasks, currentUser, users } = state;
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -340,25 +348,45 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
       {(overdueTasks.length > 0 || pendingReviewTasks.length > 0 || waitingTasks.length > 0) && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {overdueTasks.length > 0 && (
-            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div
+              onClick={() => onViewChange?.('my-tasks')}
+              style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
+              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+            >
               <span style={{ fontSize: 14 }}>⚠️</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>Просрочено: {overdueTasks.length}</span>
             </div>
           )}
           {pendingReviewTasks.length > 0 && (
-            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div
+              onClick={() => onViewChange?.(isDirector ? 'director-review' : 'pending-director')}
+              style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
+              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+            >
               <span style={{ fontSize: 14 }}>🔍</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#B45309' }}>На проверке: {pendingReviewTasks.length}</span>
             </div>
           )}
           {waitingTasks.length > 0 && (
-            <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div
+              onClick={() => onViewChange?.('waiting')}
+              style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
+              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+            >
               <span style={{ fontSize: 14 }}>⏳</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#C2410C' }}>Ждут ответа: {waitingTasks.length}</span>
             </div>
           )}
           {stuckTasks.length > 0 && (
-            <div style={{ background: '#F7F7F5', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div
+              onClick={() => onViewChange?.('my-tasks')}
+              style={{ background: '#F7F7F5', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
+              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+            >
               <span style={{ fontSize: 14 }}>😴</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Зависли: {stuckTasks.length}</span>
             </div>
@@ -377,14 +405,14 @@ export default function Dashboard({ searchQuery }: { searchQuery: string }) {
 
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 9, marginBottom: 20 }}>
-        <StatCard emoji="📅" label="Сегодня" value={todayTasks.length} sub="запланировано" color="#BE185D" highlight={todayTasks.length > 0} />
+        <StatCard emoji="📅" label="Сегодня" value={todayTasks.length} sub="запланировано" color="#BE185D" highlight={todayTasks.length > 0} onClick={todayTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
         <StatCard emoji="✅" label="Выполнено" value={completedToday} sub="сегодня" color="#059669" />
         <StatCard emoji="📊" label="% дня" value={`${dayPct}%`} sub="выполнения" color={dayPct >= 70 ? '#059669' : dayPct >= 40 ? '#D97706' : '#6366F1'} />
-        <StatCard emoji="▶️" label="В работе" value={inProgress} sub="активных" color="#1D4ED8" />
-        <StatCard emoji="⏳" label="Жду ответ" value={waitingTasks.length} sub="ожидание" color="#F97316" />
-        <StatCard emoji="🔍" label="На проверке" value={pendingReviewTasks.length} sub="у директора" color="#D97706" />
-        <StatCard emoji="⚠️" label="Просрочено" value={overdueTasks.length} sub="нужно действие" color="#B91C1C" highlight={overdueTasks.length > 0} />
-        <StatCard emoji="😴" label="Зависли" value={stuckTasks.length} sub="без движения" color="#6B7280" highlight={stuckTasks.length > 0} />
+        <StatCard emoji="▶️" label="В работе" value={inProgress} sub="активных" color="#1D4ED8" onClick={inProgress > 0 ? () => onViewChange?.('my-tasks') : undefined} />
+        <StatCard emoji="⏳" label="Жду ответ" value={waitingTasks.length} sub="ожидание" color="#F97316" onClick={waitingTasks.length > 0 ? () => onViewChange?.('waiting') : undefined} />
+        <StatCard emoji="🔍" label="На проверке" value={pendingReviewTasks.length} sub="у директора" color="#D97706" onClick={pendingReviewTasks.length > 0 ? () => onViewChange?.(isDirector ? 'director-review' : 'pending-director') : undefined} />
+        <StatCard emoji="⚠️" label="Просрочено" value={overdueTasks.length} sub="нужно действие" color="#B91C1C" highlight={overdueTasks.length > 0} onClick={overdueTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
+        <StatCard emoji="😴" label="Зависли" value={stuckTasks.length} sub="без движения" color="#6B7280" highlight={stuckTasks.length > 0} onClick={stuckTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
       </div>
 
       {/* Calendar + efficiency row */}

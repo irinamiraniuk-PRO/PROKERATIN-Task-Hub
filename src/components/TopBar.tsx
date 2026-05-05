@@ -145,6 +145,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
           width: 34,
           height: 34,
           borderRadius: '50%',
+          overflow: 'hidden',
           background: `linear-gradient(135deg, ${color}, ${color}AA)`,
           display: 'flex',
           alignItems: 'center',
@@ -155,7 +156,10 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
           flexShrink: 0,
           boxShadow: `0 2px 8px ${color}40`,
         }}>
-          {initials}
+          {currentUser.avatar
+            ? <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : initials
+          }
         </div>
 
         <button

@@ -8,7 +8,7 @@ import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v7';
+const LS_KEY = 'prokeratin_state_v8';
 
 type Action =
   | { type: 'LOGIN'; user: User }
@@ -33,7 +33,8 @@ type Action =
   | { type: 'UPDATE_TASK_PROJECT'; taskId: string; projectId: string | undefined }
   | { type: 'UPDATE_TASK_DEPS'; taskId: string; dependsOn: string[] }
   | { type: 'CREATE_PROJECT'; project: Project }
-  | { type: 'UPDATE_PROJECT'; projectId: string; patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>> };
+  | { type: 'UPDATE_PROJECT'; projectId: string; patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>> }
+  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'password' | 'avatar'>> };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -304,6 +305,15 @@ function reducer(state: AppState, action: Action): AppState {
       );
       return { ...state, projects };
     }
+    case 'UPDATE_USER': {
+      const users = state.users.map(u =>
+        u.id === action.userId ? { ...u, ...action.patch } : u
+      );
+      const currentUser = state.currentUser?.id === action.userId
+        ? { ...state.currentUser, ...action.patch }
+        : state.currentUser;
+      return { ...state, users, currentUser };
+    }
     default:
       return state;
   }
@@ -371,6 +381,8 @@ interface AppContextValue {
   updateTaskDeps: (taskId: string, dependsOn: string[]) => void;
   createProject: (data: Omit<Project, 'id' | 'createdAt' | 'taskIds'>) => void;
   updateProject: (projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) => void;
+  updateUserPassword: (currentPassword: string, newPassword: string) => boolean;
+  updateUserAvatar: (avatar: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -603,6 +615,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE_PROJECT', projectId, patch });
   }
 
+  function updateUserPassword(currentPassword: string, newPassword: string): boolean {
+    if (!state.currentUser) return false;
+    if (state.currentUser.password !== currentPassword) return false;
+    dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { password: newPassword } });
+    return true;
+  }
+
+  function updateUserAvatar(avatar: string) {
+    if (!state.currentUser) return;
+    dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { avatar } });
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
@@ -611,6 +635,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateChecklistItemAssignee, updateTaskTags, kanbanMove,
       addAttachment, markNotificationRead, markAllRead,
       updateTaskProject, updateTaskDeps, createProject, updateProject,
+      updateUserPassword, updateUserAvatar,
     }}>
       {children}
     </AppContext.Provider>
