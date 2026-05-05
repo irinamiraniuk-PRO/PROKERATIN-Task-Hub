@@ -433,7 +433,9 @@ const AppContext = createContext<AppContextValue | null>(null);
 /* ── Sound / browser-notification helpers ─── */
 function playNotificationSound() {
   try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const AudioCtx: typeof AudioContext = window.AudioContext ?? (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

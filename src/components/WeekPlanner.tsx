@@ -4,6 +4,8 @@ import type { Task } from '../types';
 import TaskModal from './TaskModal';
 import { STATUS_LABELS, statusColor, priorityColor, formatDate, isOverdue } from './TaskCard';
 
+const MAX_UNPLANNED_DISPLAY = 8;
+
 function getMondayOfWeek(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
@@ -180,7 +182,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1 }}>
             {unplanned.length === 0
               ? <div style={{ fontSize: 11, color: '#ccc' }}>Все задачи запланированы 🎉</div>
-              : unplanned.slice(0, 8).map(t => (
+              : unplanned.slice(0, MAX_UNPLANNED_DISPLAY).map(t => (
                 <div
                   key={t.id}
                   draggable
@@ -197,8 +199,8 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
                 </div>
               ))
             }
-            {unplanned.length > 8 && (
-              <div style={{ fontSize: 11, color: '#999', alignSelf: 'center', flexShrink: 0 }}>+{unplanned.length - 8} ещё</div>
+            {unplanned.length > MAX_UNPLANNED_DISPLAY && (
+              <div style={{ fontSize: 11, color: '#999', alignSelf: 'center', flexShrink: 0 }}>+{unplanned.length - MAX_UNPLANNED_DISPLAY} ещё</div>
             )}
           </div>
         </div>

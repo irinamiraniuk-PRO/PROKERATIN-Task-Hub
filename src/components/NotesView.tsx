@@ -3,6 +3,11 @@ import type React from 'react';
 import { useApp } from '../context/AppContext';
 import type { Note } from '../types';
 
+const MIN_NOTES_FOR_SEARCH = 4;
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric',
+};
+
 const NOTE_COLORS = [
   '#FFFBEB', '#FEF3C7', '#FFF7ED', '#FEF2F2', '#F0FDF4',
   '#EFF6FF', '#F5F3FF', '#FDF4FF', '#F0F9FF', '#F7F7F5',
@@ -241,8 +246,8 @@ export default function NotesView() {
             </div>
           </div>
           <div style={{ fontSize: 11, color: '#999', marginBottom: 20 }}>
-            Создана: {new Date(viewingNote.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            {viewingNote.updatedAt !== viewingNote.createdAt && ` • Изменена: ${new Date(viewingNote.updatedAt).toLocaleString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+            Создана: {new Date(viewingNote.createdAt).toLocaleString('ru-RU', { ...DATE_FORMAT_OPTIONS, hour: '2-digit', minute: '2-digit' })}
+            {viewingNote.updatedAt !== viewingNote.createdAt && ` • Изменена: ${new Date(viewingNote.updatedAt).toLocaleString('ru-RU', { ...DATE_FORMAT_OPTIONS, hour: '2-digit', minute: '2-digit' })}`}
           </div>
           {viewingNote.content
             ? <div style={{ fontSize: 14, color: '#333', lineHeight: 1.7 }}>{renderMarkdown(viewingNote.content)}</div>
@@ -288,7 +293,7 @@ export default function NotesView() {
       </div>
 
       {/* Search */}
-      {myNotes.length > 4 && (
+      {myNotes.length > MIN_NOTES_FOR_SEARCH && (
         <div style={{ position: 'relative', marginBottom: 16, maxWidth: 380 }}>
           <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#C0BDB9', fontSize: 13 }}>⌕</span>
           <input
@@ -406,7 +411,7 @@ function NoteCard({ note, onOpen, onPin, onDelete, userColor }: {
       )}
       <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 11, color: '#aaa' }}>
-          {new Date(note.updatedAt).toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit', year: 'numeric' })}
+          {new Date(note.updatedAt).toLocaleDateString('ru-RU', DATE_FORMAT_OPTIONS)}
         </div>
         <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
           <button
