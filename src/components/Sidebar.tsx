@@ -15,6 +15,7 @@ export type View =
   | 'archive'
   | 'settings'
   | 'knowledge-base'
+  | 'notes'
   | 'onboarding';
 
 interface SidebarProps {
@@ -99,6 +100,7 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
     {
       title: 'Помощник',
       items: [
+        { id: 'notes', label: 'Заметки', icon: '📝' },
         { id: 'knowledge-base', label: 'База знаний', icon: '◦' },
         { id: 'onboarding', label: 'Онбординг', icon: '◇' },
       ],
@@ -120,25 +122,28 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
       top: 0,
     }}>
       {/* Logo */}
-      <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #EEECEA' }}>
+      <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #EEECEA' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: `linear-gradient(135deg, ${userColor}, ${userColor}CC)`,
+            width: 34,
+            height: 34,
+            borderRadius: 9,
+            background: 'linear-gradient(135deg, #BE185D, #DB2777)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 13,
+            fontSize: 16,
+            fontWeight: 900,
+            color: '#fff',
             flexShrink: 0,
-            boxShadow: `0 2px 8px ${userColor}40`,
+            boxShadow: '0 3px 10px rgba(190,24,93,0.35)',
+            letterSpacing: '-0.5px',
           }}>
-            ✦
+            P
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px', lineHeight: 1.2 }}>PROKERATIN</div>
-            <div style={{ fontSize: 10, color: '#ADADAD', letterSpacing: '0.2px', marginTop: 1 }}>Task Hub</div>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.3px', lineHeight: 1.1 }}>PROKERATIN</div>
+            <div style={{ fontSize: 9.5, color: '#ADADAD', letterSpacing: '0.3px', marginTop: 1, fontWeight: 400 }}>Task Hub</div>
           </div>
         </div>
       </div>

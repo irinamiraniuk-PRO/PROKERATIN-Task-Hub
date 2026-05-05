@@ -388,22 +388,36 @@ export default function Login() {
         <div className="anim-fade-in" style={{ textAlign: 'center', marginBottom: 44 }}>
           <div style={{
             display: 'inline-flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            width: 52,
-            height: 52,
-            borderRadius: 14,
-            background: 'linear-gradient(135deg, #BE185D, #DB2777)',
-            boxShadow: '0 8px 28px rgba(190,24,93,0.3)',
-            marginBottom: 16,
+            gap: 0,
           }}>
-            <span style={{ fontSize: 22, color: '#fff' }}>✦</span>
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.8px', color: '#1A1A1A' }}>
-            PROKERATIN
-          </div>
-          <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5, fontWeight: 400 }}>
-            Система управления задачами
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 64,
+              height: 64,
+              borderRadius: 18,
+              background: 'linear-gradient(135deg, #BE185D 0%, #DB2777 55%, #EC4899 100%)',
+              boxShadow: '0 10px 36px rgba(190,24,93,0.35), 0 2px 8px rgba(190,24,93,0.2)',
+              marginBottom: 14,
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                position: 'absolute', top: 4, left: 4, right: 4, bottom: 4,
+                borderRadius: 14,
+                background: 'rgba(255,255,255,0.12)',
+              }} />
+              <span style={{ fontSize: 28, color: '#fff', position: 'relative', zIndex: 1, fontWeight: 800, letterSpacing: '-1px' }}>P</span>
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.8px', color: '#1A1A1A', lineHeight: 1 }}>
+              PROKERATIN
+            </div>
+            <div style={{ fontSize: 12.5, color: '#ADADAD', marginTop: 5, fontWeight: 400, letterSpacing: '0.3px' }}>
+              Система управления задачами
+            </div>
           </div>
         </div>
 

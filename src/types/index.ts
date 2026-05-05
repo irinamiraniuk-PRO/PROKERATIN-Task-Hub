@@ -145,11 +145,36 @@ export interface Task {
   dependsOn?: string[]; // task IDs this task depends on (must complete first)
 }
 
+export interface Note {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  emoji: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+  pinned?: boolean;
+}
+
+export interface UserKBArticle {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  type: 'regulation' | 'instruction' | 'template' | 'checklist' | 'rules' | 'link';
+  url?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppState {
   currentUser: User | null;
   tasks: Task[];
   users: User[];
   notifications: Notification[];
   projects: Project[];
+  notes: Note[];
+  userKBArticles: UserKBArticle[];
 }
 

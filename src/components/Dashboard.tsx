@@ -416,7 +416,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
       </div>
 
       {/* Calendar + efficiency row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 220px', gap: 14, marginBottom: 20 }}>
+      <div className="responsive-grid-3" style={{ marginBottom: 20 }}>
 
         {/* Efficiency panel */}
         <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
@@ -478,7 +478,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
       </div>
 
       {/* Tomorrow + Week row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div className="responsive-grid-2" style={{ marginBottom: 20 }}>
         <TaskSection
           emoji="⏭️"
           title="Задачи на завтра"
@@ -502,7 +502,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
       </div>
 
       {/* Overdue + Pending review + Waiting + Stuck row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div className="responsive-grid-4" style={{ marginBottom: 20 }}>
         <TaskSection
           emoji="🔥"
           title="Просроченные"

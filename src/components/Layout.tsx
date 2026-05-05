@@ -17,6 +17,7 @@ import SettingsView from './SettingsView';
 import KanbanBoard from './KanbanBoard';
 import KnowledgeBase from './KnowledgeBase';
 import OnboardingView from './OnboardingView';
+import NotesView from './NotesView';
 import { useApp } from '../context/AppContext';
 
 export default function Layout() {
@@ -60,13 +61,14 @@ export default function Layout() {
       case 'archive': return <Archive searchQuery={searchQuery} />;
       case 'settings': return <SettingsView />;
       case 'knowledge-base': return <KnowledgeBase />;
+      case 'notes': return <NotesView />;
       case 'onboarding': return <OnboardingView />;
       default: return <Dashboard searchQuery={searchQuery} />;
     }
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#F7F7F5', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100dvh', background: '#F7F7F5', overflow: 'hidden' }}>
       <div className="sidebar-wrapper">
         <Sidebar
           currentView={view}
@@ -74,9 +76,9 @@ export default function Layout() {
           onCreateTask={() => setShowCreate(true)}
         />
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: view === 'kanban' ? 'hidden' : undefined }}>
+        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {renderView()}
         </main>
       </div>
