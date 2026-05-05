@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import type { User } from '../types';
 
@@ -309,15 +309,30 @@ export default function Login() {
 
   const color = selectedUser?.color ?? '#BE185D';
 
+  // Keep refs so the effect closure always sees the latest values without
+  // adding them to the dependency array (which would cancel timers on re-render).
+  const loginRef = useRef(login);
+  loginRef.current = login;
+  const enteringUserRef = useRef(enteringUser);
+  enteringUserRef.current = enteringUser;
+
   /* Kick off login after overlay fully plays */
   useEffect(() => {
     if (phase !== 'welcome-in') return;
-    const t1 = setTimeout(() => setPhase('welcome-out'), 1100);
-    const t2 = setTimeout(() => {
-      if (enteringUser) login(enteringUser.login, enteringUser.password);
-    }, 1550);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [phase, enteringUser, login]);
+    // t1 switches the overlay to its leave animation at 1100 ms.
+    // The login call is nested inside t1's callback so it is NOT cancelled
+    // when the phase state update re-renders the component (which would
+    // have cleared a top-level t2 and prevented login from ever firing).
+    const t1 = setTimeout(() => {
+      setPhase('welcome-out');
+      setTimeout(() => {
+        const eu = enteringUserRef.current;
+        if (eu) loginRef.current(eu.login, eu.password);
+      }, 450); // 450 ms after leave starts = 1550 ms total
+    }, 1100);
+    return () => clearTimeout(t1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   function handleSelectUser(user: User) {
     setSelectedUser(user);
