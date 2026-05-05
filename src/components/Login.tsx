@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { User } from '../types';
 
-/* ── helpers ─────────────────────────────────────── */
+  /* ── helpers ─────────────────────────────────────── */
 function initials(name: string) {
   return name
     .split(' ')
@@ -84,6 +84,7 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
         width: 72,
         height: 72,
         borderRadius: '50%',
+        overflow: 'hidden',
         background: `linear-gradient(135deg, ${color}, ${hexAlpha(color, 0.6)})`,
         display: 'flex',
         alignItems: 'center',
@@ -96,7 +97,10 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
         flexShrink: 0,
         animation: 'avatarPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
       }}>
-        {initials(user.name)}
+        {user.avatar
+          ? <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : initials(user.name)
+        }
       </div>
 
       {/* Name */}
@@ -163,14 +167,6 @@ export default function Login() {
         setSubmitting(false);
       }
     }, 300);
-  }
-
-  /* Quick-fill (demo) */
-  function handleQuickLogin(user: User) {
-    setSubmitting(true);
-    setTimeout(() => {
-      login(user.login, user.password);
-    }, 350);
   }
 
   return (
@@ -256,6 +252,7 @@ export default function Login() {
               width: 80,
               height: 80,
               borderRadius: '50%',
+              overflow: 'hidden',
               background: `linear-gradient(135deg, ${color}, ${hexAlpha(color, 0.6)})`,
               display: 'flex',
               alignItems: 'center',
@@ -266,7 +263,10 @@ export default function Login() {
               boxShadow: `0 6px 24px ${hexAlpha(color, 0.4)}`,
               animation: 'avatarPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
             }}>
-              {initials(selectedUser.name)}
+              {selectedUser.avatar
+                ? <img src={selectedUser.avatar} alt={selectedUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : initials(selectedUser.name)
+              }
             </div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>{selectedUser.name}</div>
             {selectedUser.role === 'director' && (
@@ -365,27 +365,6 @@ export default function Login() {
                 {submitting ? 'Входим...' : 'Войти'}
               </button>
             </form>
-
-            {/* Quick demo login */}
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <button
-                onClick={() => handleQuickLogin(selectedUser)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: color,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  textDecoration: 'underline',
-                  textUnderlineOffset: 2,
-                }}
-              >
-                Войти без пароля (демо)
-              </button>
-            </div>
           </div>
 
           {/* Back */}

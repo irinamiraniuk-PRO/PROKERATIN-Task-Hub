@@ -1,11 +1,10 @@
 import type { User, Task } from '../types';
 
 export const USERS: User[] = [
-  { id: 'director', name: 'Ирина Миранюк', login: 'irina', password: 'irina123', role: 'director', color: '#BE185D' },
-  { id: 'user1', name: 'Ульяна Токарь', login: 'ulyana_t', password: 'ulyana_t123', role: 'employee', color: '#7C3AED' },
-  { id: 'user2', name: 'Ульяна', login: 'ulyana', password: 'ulyana123', role: 'employee', color: '#0891B2' },
-  { id: 'user3', name: 'Натали', login: 'natali', password: 'natali123', role: 'employee', color: '#EA580C' },
-  { id: 'user4', name: 'Марина', login: 'marina', password: 'marina123', role: 'employee', color: '#16A34A' },
+  { id: 'director', name: 'Ирина Миранюк', login: 'irina', password: '1111', role: 'director', color: '#BE185D' },
+  { id: 'user2', name: 'Ульяна', login: 'ulyana', password: '1111', role: 'employee', color: '#0891B2' },
+  { id: 'user3', name: 'Натали', login: 'natali', password: '1111', role: 'employee', color: '#EA580C' },
+  { id: 'user4', name: 'Марина', login: 'marina', password: '1111', role: 'employee', color: '#16A34A' },
 ];
 
 const now = new Date();
@@ -55,7 +54,7 @@ export const INITIAL_TASKS: Task[] = [
     title: 'Обновить корпоративный сайт',
     description: 'Обновить раздел «О компании» и добавить новые фотографии команды.',
     createdBy: 'director',
-    assignedTo: 'user1',
+    assignedTo: 'user2',
     createdAt: d(-7),
     deadline: d(5),
     plannedDate: dateStr(1),
@@ -68,14 +67,14 @@ export const INITIAL_TASKS: Task[] = [
     comments: [],
     history: [
       { id: 'h4', taskId: 't2', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-7) },
-      { id: 'h5', taskId: 't2', actorId: 'user1', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-6) },
+      { id: 'h5', taskId: 't2', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-6) },
     ],
   },
   {
     id: 't3',
     title: 'Провести анализ конкурентов',
     description: 'Изучить предложения конкурентов по основным продуктовым линейкам, составить сравнительную таблицу.',
-    createdBy: 'user1',
+    createdBy: 'director',
     assignedTo: 'user2',
     createdAt: d(-5),
     deadline: d(-1),
@@ -83,10 +82,10 @@ export const INITIAL_TASKS: Task[] = [
     priority: 'high',
     status: 'overdue',
     comments: [
-      { id: 'c3', taskId: 't3', authorId: 'user1', text: 'Ульяна, срок уже истёк. Когда будет готово?', createdAt: d(0) },
+      { id: 'c3', taskId: 't3', authorId: 'director', text: 'Ульяна, срок уже истёк. Когда будет готово?', createdAt: d(0) },
     ],
     history: [
-      { id: 'h6', taskId: 't3', actorId: 'user1', action: 'Задача создана', toStatus: 'new', createdAt: d(-5) },
+      { id: 'h6', taskId: 't3', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-5) },
       { id: 'h7', taskId: 't3', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-4) },
       { id: 'h8', taskId: 't3', actorId: 'user2', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-3) },
       { id: 'h9', taskId: 't3', actorId: 'system', action: 'Задача просрочена', fromStatus: 'in_progress', toStatus: 'overdue', createdAt: d(0) },
@@ -117,7 +116,7 @@ export const INITIAL_TASKS: Task[] = [
     title: 'Разработать план маркетинга на Q3',
     description: 'Составить маркетинговый план на III квартал с бюджетом и KPI.',
     createdBy: 'director',
-    assignedTo: 'user1',
+    assignedTo: 'user2',
     createdAt: d(-3),
     deadline: d(7),
     plannedDate: dateStr(-1),
@@ -125,13 +124,13 @@ export const INITIAL_TASKS: Task[] = [
     status: 'pending_director_review',
     sentToDirectorAt: d(-1),
     comments: [
-      { id: 'c4', taskId: 't5', authorId: 'user1', text: 'План готов, отправляю на проверку директору.', createdAt: d(-1) },
+      { id: 'c4', taskId: 't5', authorId: 'user2', text: 'План готов, отправляю на проверку директору.', createdAt: d(-1) },
     ],
     history: [
       { id: 'h13', taskId: 't5', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-3) },
-      { id: 'h14', taskId: 't5', actorId: 'user1', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-2) },
-      { id: 'h15', taskId: 't5', actorId: 'user1', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-2) },
-      { id: 'h16', taskId: 't5', actorId: 'user1', action: 'Отправлено на проверку директору', fromStatus: 'in_progress', toStatus: 'pending_director_review', createdAt: d(-1) },
+      { id: 'h14', taskId: 't5', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-2) },
+      { id: 'h15', taskId: 't5', actorId: 'user2', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-2) },
+      { id: 'h16', taskId: 't5', actorId: 'user2', action: 'Отправлено на проверку директору', fromStatus: 'in_progress', toStatus: 'pending_director_review', createdAt: d(-1) },
     ],
   },
   {
@@ -194,7 +193,7 @@ export const INITIAL_TASKS: Task[] = [
     title: 'Организовать корпоративное мероприятие',
     description: 'Спланировать и провести тимбилдинг для отдела продаж (10–15 человек).',
     createdBy: 'director',
-    assignedTo: 'user1',
+    assignedTo: 'user2',
     createdAt: d(-1),
     deadline: d(14),
     plannedDate: dateStr(3),
@@ -230,7 +229,7 @@ export const INITIAL_TASKS: Task[] = [
     title: 'Подготовить презентацию для инвесторов',
     description: 'Создать презентацию с результатами Q1 2026 и прогнозом на Q2–Q4 2026.',
     createdBy: 'director',
-    assignedTo: 'user1',
+    assignedTo: 'user2',
     createdAt: d(-2),
     deadline: d(4),
     plannedDate: dateStr(1),
@@ -243,12 +242,12 @@ export const INITIAL_TASKS: Task[] = [
       { id: 'cl10', text: 'Оформить в PowerPoint/Canva', done: false },
     ],
     comments: [
-      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Ульяна Токарь, сделайте акцент на динамику продаж кератиновых продуктов.', createdAt: d(-1) },
+      { id: 'c7', taskId: 't11', authorId: 'director', text: 'Ульяна, сделайте акцент на динамику продаж кератиновых продуктов.', createdAt: d(-1) },
     ],
     history: [
       { id: 'h31', taskId: 't11', actorId: 'director', action: 'Задача создана', toStatus: 'new', createdAt: d(-2) },
-      { id: 'h32', taskId: 't11', actorId: 'user1', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-1) },
-      { id: 'h33', taskId: 't11', actorId: 'user1', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-1) },
+      { id: 'h32', taskId: 't11', actorId: 'user2', action: 'Задача принята', fromStatus: 'new', toStatus: 'accepted', createdAt: d(-1) },
+      { id: 'h33', taskId: 't11', actorId: 'user2', action: 'Работа начата', fromStatus: 'accepted', toStatus: 'in_progress', createdAt: d(-1) },
     ],
   },
   {
@@ -323,7 +322,7 @@ export const INITIAL_TASKS: Task[] = [
     title: 'Обновить Instagram-контент план',
     description: 'Составить контент-план для Instagram на июнь–июль 2026 с визуалами и хэштегами.',
     createdBy: 'director',
-    assignedTo: 'user1',
+    assignedTo: 'user2',
     createdAt: d(0),
     deadline: d(5),
     plannedDate: dateStr(0),
