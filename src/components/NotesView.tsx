@@ -326,7 +326,7 @@ export default function NotesView() {
           <div style={{ fontSize: 12, fontWeight: 700, color: '#ADADAD', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>📌 Закреплённые</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
             {pinnedNotes.map(note => (
-              <NoteCard key={note.id} note={note} onOpen={setViewingId} onPin={id => updateNote(id, { pinned: false })} onDelete={handleDelete} userColor={userColor} />
+              <NoteCard key={note.id} note={note} onOpen={setViewingId} onPin={id => updateNote(id, { pinned: false })} onDelete={handleDelete} />
             ))}
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function NotesView() {
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
             {regularNotes.map(note => (
-              <NoteCard key={note.id} note={note} onOpen={setViewingId} onPin={id => updateNote(id, { pinned: true })} onDelete={handleDelete} userColor={userColor} />
+              <NoteCard key={note.id} note={note} onOpen={setViewingId} onPin={id => updateNote(id, { pinned: true })} onDelete={handleDelete} />
             ))}
           </div>
         </div>
@@ -371,12 +371,11 @@ export default function NotesView() {
   );
 }
 
-function NoteCard({ note, onOpen, onPin, onDelete, userColor }: {
+function NoteCard({ note, onOpen, onPin, onDelete }: {
   note: Note;
   onOpen: (id: string) => void;
   onPin: (id: string) => void;
   onDelete: (id: string) => void;
-  userColor: string;
 }) {
   const preview = note.content.replace(/[#*]/g, '').slice(0, 120);
 
