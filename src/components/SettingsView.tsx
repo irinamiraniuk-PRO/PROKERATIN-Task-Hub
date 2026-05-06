@@ -10,7 +10,7 @@ export default function SettingsView() {
   const initials = currentUser.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ padding: '28px 28px', maxWidth: 700 }}>
+    <div style={{ padding: '16px', maxWidth: 700, width: '100%' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#111' }}>⚙️ Настройки</h1>
         <div style={{ fontSize: 13, color: '#888' }}>Управление учётной записью и параметрами приложения</div>
@@ -19,7 +19,7 @@ export default function SettingsView() {
       {/* Profile */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 16 }}>👤 Профиль</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
           {[
             { label: 'Имя', value: currentUser.name },
             { label: 'Логин', value: currentUser.login },
@@ -43,7 +43,7 @@ export default function SettingsView() {
       {/* App settings info */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 16 }}>🌍 Часовой пояс и локаль</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
           {[
             { label: 'Часовой пояс', value: 'Europe/Minsk (UTC+3)' },
             { label: 'Язык', value: 'Русский' },
@@ -116,7 +116,7 @@ function AvatarSection({ color, initials, avatar, onSave }: {
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 16 }}>🖼️ Фото профиля</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
         {/* Current avatar preview */}
         <div style={{
           width: 72, height: 72, borderRadius: '50%', overflow: 'hidden',

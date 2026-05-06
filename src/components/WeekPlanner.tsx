@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
 import TaskModal from './TaskModal';
@@ -79,6 +79,17 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
+    const day = new Date().getDay();
+    return day === 0 ? 6 : day - 1;
+  });
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   if (!currentUser) return null;
 
@@ -139,38 +150,64 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
   const todayStr = toISODateStr(now);
 
   return (
-    <div style={{ padding: '24px 24px', height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ padding: isMobile ? '12px' : '24px', height: isMobile ? 'auto' : 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%', maxWidth: '100vw' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0, gap: 8, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: '0 0 3px', fontSize: 20, fontWeight: 700, color: '#111' }}>📅 Планер недели</h1>
           <div style={{ fontSize: 12, color: '#888' }}>
             {toDateStr(monday)} — {toDateStr(addDays(monday, 6))}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: isMobile ? '100%' : undefined }}>
           <button
             onClick={() => setWeekOffset(w => w - 1)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 14 }}
+            style={{ minHeight: 44, padding: '6px 12px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 14, flex: isMobile ? 1 : undefined }}
           >← Пред.</button>
           <button
             onClick={() => setWeekOffset(0)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #BE185D', background: weekOffset === 0 ? '#BE185D' : '#fff', color: weekOffset === 0 ? '#fff' : '#BE185D', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+            style={{ minHeight: 44, padding: '6px 12px', borderRadius: 8, border: '1px solid #BE185D', background: weekOffset === 0 ? '#BE185D' : '#fff', color: weekOffset === 0 ? '#fff' : '#BE185D', cursor: 'pointer', fontSize: 13, fontWeight: 600, flex: isMobile ? 1 : undefined }}
           >Сегодня</button>
           <button
             onClick={() => setWeekOffset(w => w + 1)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 14 }}
+            style={{ minHeight: 44, padding: '6px 12px', borderRadius: 8, border: '1px solid #E0E0E0', background: '#fff', cursor: 'pointer', fontSize: 14, flex: isMobile ? 1 : undefined }}
           >След. →</button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flex: 1, overflow: 'hidden' }}>
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 8, paddingBottom: 4 }}>
+          {weekDays.map((dayDate, i) => {
+            const active = i === selectedDayIndex;
+            const count = (tasksByDay[weekDayStrs[i]] ?? []).length;
+            return (
+              <button
+                key={weekDayStrs[i]}
+                onClick={() => setSelectedDayIndex(i)}
+                style={{
+                  minHeight: 44,
+                  borderRadius: 10,
+                  border: `1px solid ${active ? '#BE185D' : '#E8E8E8'}`,
+                  background: active ? '#FFF0F7' : '#fff',
+                  padding: '6px 10px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700 }}>{DAY_NAMES[i].slice(0, 3)}</div>
+                <div style={{ fontSize: 11, color: '#666' }}>{dayDate.toLocaleDateString('ru-RU', { timeZone: 'Europe/Minsk', day: '2-digit', month: '2-digit' })} • {count}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 12, flex: 1, overflow: 'hidden' }}>
         {/* Unplanned sidebar */}
         <div
           onDragOver={e => e.preventDefault()}
           onDrop={handleDropUnplanned}
           style={{
-            width: 190, flexShrink: 0, background: '#FAFAF8', borderRadius: 12,
+            width: isMobile ? '100%' : 190, flexShrink: 0, background: '#FAFAF8', borderRadius: 12,
             border: '1.5px dashed #D1D5DB', display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
           }}
@@ -193,8 +230,9 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
         </div>
 
         {/* Week columns */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, overflow: 'hidden' }}>
-          {weekDays.map((dayDate, i) => {
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(7, 1fr)', gap: 6, overflow: 'hidden' }}>
+          {(isMobile ? [weekDays[selectedDayIndex]] : weekDays).map((dayDate, i0) => {
+            const i = isMobile ? selectedDayIndex : i0;
             const dayStr = weekDayStrs[i];
             const isToday = dayStr === todayStr;
             const dayTasks = tasksByDay[dayStr] ?? [];
@@ -249,7 +287,7 @@ export default function WeekPlanner({ searchQuery }: { searchQuery: string }) {
       </div>
 
       {/* Legend */}
-      <div style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center', fontSize: 11, color: '#aaa', flexShrink: 0 }}>
+      <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: '#aaa', flexShrink: 0, flexWrap: 'wrap' }}>
         <span>💡 Перетаскивайте задачи между днями</span>
         <span>•</span>
         <span>Незапланированные задачи — в левой колонке</span>

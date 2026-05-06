@@ -13,6 +13,7 @@ export type View =
   | 'director-review'
   | 'team'
   | 'archive'
+  | 'notes'
   | 'settings'
   | 'knowledge-base'
   | 'onboarding';
@@ -92,6 +93,7 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
       title: 'Управление',
       items: [
         { id: 'team', label: 'Команда', icon: '◈', directorOnly: true },
+        { id: 'notes', label: 'Заметки', icon: '📝' },
         { id: 'archive', label: 'Архив', icon: '▣' },
         { id: 'settings', label: 'Настройки', icon: '◌' },
       ],

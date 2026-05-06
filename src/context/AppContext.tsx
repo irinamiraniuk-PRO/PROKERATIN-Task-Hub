@@ -3,12 +3,14 @@ import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
   RecurrenceType, Project,
+  Note,
 } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 
-const LS_KEY = 'prokeratin_state_v8';
+const LS_KEY = 'prokeratin_state';
+const LEGACY_KEYS = ['prokeratin_state_v8', 'prokeratin_state_v7', 'prokeratin_state_v6'];
 
 type Action =
   | { type: 'LOGIN'; user: User }
@@ -34,7 +36,10 @@ type Action =
   | { type: 'UPDATE_TASK_DEPS'; taskId: string; dependsOn: string[] }
   | { type: 'CREATE_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; projectId: string; patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>> }
-  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'password' | 'avatar'>> };
+  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'password' | 'avatar'>> }
+  | { type: 'ADD_NOTE'; note: Note }
+  | { type: 'UPDATE_NOTE'; noteId: string; patch: Partial<Pick<Note, 'title' | 'content'>> }
+  | { type: 'DELETE_NOTE'; noteId: string };
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -314,6 +319,18 @@ function reducer(state: AppState, action: Action): AppState {
         : state.currentUser;
       return { ...state, users, currentUser };
     }
+    case 'ADD_NOTE':
+      return { ...state, notes: [action.note, ...state.notes] };
+    case 'UPDATE_NOTE': {
+      const notes = state.notes.map(note =>
+        note.id === action.noteId ? { ...note, ...action.patch, updatedAt: new Date().toISOString() } : note
+      );
+      return { ...state, notes };
+    }
+    case 'DELETE_NOTE': {
+      const notes = state.notes.filter(note => note.id !== action.noteId);
+      return { ...state, notes };
+    }
     default:
       return state;
   }
@@ -325,19 +342,74 @@ const initialState: AppState = {
   users: USERS,
   notifications: [],
   projects: INITIAL_PROJECTS,
+  notes: [],
 };
+
+function readPersistedState(): Partial<AppState> | null {
+  const rawPrimary = localStorage.getItem(LS_KEY);
+  if (rawPrimary) {
+    return JSON.parse(rawPrimary) as Partial<AppState>;
+  }
+  for (const key of LEGACY_KEYS) {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      return JSON.parse(raw) as Partial<AppState>;
+    }
+  }
+  return null;
+}
+
+function normalizeUsers(users?: User[]): User[] {
+  if (!Array.isArray(users) || users.length === 0) return USERS;
+  return users.map((u, i) => ({
+    ...USERS[Math.min(i, USERS.length - 1)],
+    ...u,
+  }));
+}
+
+function normalizeTasks(tasks?: Task[]): Task[] {
+  if (!Array.isArray(tasks) || tasks.length === 0) return INITIAL_TASKS;
+  return tasks.map(task => ({
+    ...task,
+    comments: Array.isArray(task.comments) ? task.comments : [],
+    history: Array.isArray(task.history) ? task.history : [],
+    checklist: Array.isArray(task.checklist) ? task.checklist : task.checklist,
+    attachments: Array.isArray(task.attachments) ? task.attachments : task.attachments,
+  }));
+}
+
+function normalizeProjects(projects?: Project[]): Project[] {
+  if (!Array.isArray(projects) || projects.length === 0) return INITIAL_PROJECTS;
+  return projects.map(p => ({
+    ...p,
+    memberIds: Array.isArray(p.memberIds) ? p.memberIds : [],
+    taskIds: Array.isArray(p.taskIds) ? p.taskIds : [],
+  }));
+}
+
+function normalizeNotes(notes?: Note[]): Note[] {
+  if (!Array.isArray(notes)) return [];
+  return notes.map(n => ({
+    ...n,
+    title: n.title ?? '',
+    content: n.content ?? '',
+    createdAt: n.createdAt ?? new Date().toISOString(),
+    updatedAt: n.updatedAt ?? n.createdAt ?? new Date().toISOString(),
+  }));
+}
 
 function loadState(): AppState {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<AppState>;
+    const parsed = readPersistedState();
+    if (parsed) {
       return {
-        ...initialState,
         ...parsed,
         currentUser: null,
-        notifications: parsed.notifications ?? [],
-        projects: parsed.projects ?? INITIAL_PROJECTS,
+        users: normalizeUsers(parsed.users),
+        tasks: normalizeTasks(parsed.tasks),
+        notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+        projects: normalizeProjects(parsed.projects),
+        notes: normalizeNotes(parsed.notes),
       };
     }
   } catch { /* ignore */ }
@@ -346,8 +418,9 @@ function loadState(): AppState {
 
 function saveState(state: AppState) {
   try {
-    const { currentUser: _cu, ...rest } = state;
-    localStorage.setItem(LS_KEY, JSON.stringify(rest));
+    const persistable = { ...state } as Omit<AppState, 'currentUser'> & { currentUser?: User | null };
+    delete persistable.currentUser;
+    localStorage.setItem(LS_KEY, JSON.stringify(persistable));
   } catch { /* ignore */ }
 }
 
@@ -383,6 +456,9 @@ interface AppContextValue {
   updateProject: (projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) => void;
   updateUserPassword: (currentPassword: string, newPassword: string) => boolean;
   updateUserAvatar: (avatar: string) => void;
+  addNote: (title: string, content: string) => void;
+  updateNote: (noteId: string, patch: Partial<Pick<Note, 'title' | 'content'>>) => void;
+  deleteNote: (noteId: string) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -627,6 +703,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { avatar } });
   }
 
+  function addNote(title: string, content: string) {
+    if (!state.currentUser) return;
+    const now = new Date().toISOString();
+    const note: Note = {
+      id: uid(),
+      userId: state.currentUser.id,
+      title,
+      content,
+      createdAt: now,
+      updatedAt: now,
+    };
+    dispatch({ type: 'ADD_NOTE', note });
+  }
+
+  function updateNote(noteId: string, patch: Partial<Pick<Note, 'title' | 'content'>>) {
+    dispatch({ type: 'UPDATE_NOTE', noteId, patch });
+  }
+
+  function deleteNote(noteId: string) {
+    dispatch({ type: 'DELETE_NOTE', noteId });
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
@@ -635,7 +733,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateChecklistItemAssignee, updateTaskTags, kanbanMove,
       addAttachment, markNotificationRead, markAllRead,
       updateTaskProject, updateTaskDeps, createProject, updateProject,
-      updateUserPassword, updateUserAvatar,
+      updateUserPassword, updateUserAvatar, addNote, updateNote, deleteNote,
     }}>
       {children}
     </AppContext.Provider>

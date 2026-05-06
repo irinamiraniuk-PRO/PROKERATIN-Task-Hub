@@ -150,7 +150,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
             <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
               Выберите шаблон для быстрого создания задачи:
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
               {TASK_TEMPLATES.map(tpl => (
                 <button
                   key={tpl.id}
@@ -219,7 +219,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
               <div>
                 <label style={labelStyle}>Исполнитель *</label>
                 <select
@@ -251,7 +251,7 @@ export default function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
               <div>
                 <label style={labelStyle}>Дедлайн *</label>
                 <input

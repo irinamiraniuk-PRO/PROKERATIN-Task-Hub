@@ -17,6 +17,7 @@ import SettingsView from './SettingsView';
 import KanbanBoard from './KanbanBoard';
 import KnowledgeBase from './KnowledgeBase';
 import OnboardingView from './OnboardingView';
+import NotesView from './NotesView';
 import { useApp } from '../context/AppContext';
 
 export default function Layout() {
@@ -58,6 +59,7 @@ export default function Layout() {
       case 'director-review': return isDirector ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
       case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
       case 'archive': return <Archive searchQuery={searchQuery} />;
+      case 'notes': return <NotesView />;
       case 'settings': return <SettingsView />;
       case 'knowledge-base': return <KnowledgeBase />;
       case 'onboarding': return <OnboardingView />;
@@ -66,7 +68,7 @@ export default function Layout() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#F7F7F5', overflow: 'hidden' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', background: '#F7F7F5', overflow: 'hidden', width: '100%', maxWidth: '100vw' }}>
       <div className="sidebar-wrapper">
         <Sidebar
           currentView={view}
@@ -74,9 +76,9 @@ export default function Layout() {
           onCreateTask={() => setShowCreate(true)}
         />
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: view === 'kanban' ? 'hidden' : undefined }}>
+        <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
           {renderView()}
         </main>
       </div>

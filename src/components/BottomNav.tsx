@@ -46,8 +46,8 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
   const mainItems: { id: View; label: string; icon: string; badge?: number }[] = [
     { id: 'dashboard', label: 'Главная', icon: '⌂' },
     { id: 'my-tasks', label: 'Задачи', icon: '◉', badge: returnedCount > 0 ? returnedCount : undefined },
-    { id: 'incoming', label: 'Входящие', icon: '↓', badge: incomingCount },
-    { id: isDirector ? 'director-review' : 'pending-director', label: isDirector ? 'Проверка' : 'На пров.', icon: '◎', badge: isDirector ? reviewCount : pendingMineCount },
+    { id: 'week-planner', label: 'Планер', icon: '◫' },
+    { id: 'notes', label: 'Заметки', icon: '📝' },
   ];
 
   /* All nav items for the menu sheet */
@@ -55,11 +55,12 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
   const menuGroups: MenuGroup[] = [
     {
       title: 'Главное',
-      items: [
-        { id: 'dashboard', label: 'Главная', icon: '⌂' },
-        { id: 'calendar-planner', label: 'Дашборд', icon: '▦' },
-      ],
-    },
+          items: [
+            { id: 'dashboard', label: 'Главная', icon: '⌂' },
+            { id: 'calendar-planner', label: 'Дашборд', icon: '▦' },
+            { id: 'notes', label: 'Заметки', icon: '📝' },
+          ],
+        },
     {
       title: 'Планирование',
       items: [
@@ -218,7 +219,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
       )}
 
       {/* Bottom nav bar */}
-      <nav className="bottom-nav">
+       <nav className="bottom-nav">
         {mainItems.map(item => {
           const active = currentView === item.id;
           return (
@@ -290,7 +291,17 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
           }}
         >
           <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>☰</span>
-          <span style={{ fontSize: 9, fontWeight: showMenu ? 600 : 400, letterSpacing: '0.1px' }}>Меню</span>
+          <span style={{ fontSize: 9, fontWeight: showMenu ? 600 : 400, letterSpacing: '0.1px' }}>Профиль</span>
+          {(incomingCount + waitingCount + (isDirector ? reviewCount : pendingMineCount)) > 0 && (
+            <span style={{
+              position: 'absolute', top: 2, right: '50%', transform: 'translateX(14px)',
+              background: '#3B82F6', color: '#fff',
+              borderRadius: 100, fontSize: 9, fontWeight: 700,
+              padding: '1px 4px', minWidth: 14, textAlign: 'center',
+            }}>
+              {incomingCount + waitingCount + (isDirector ? reviewCount : pendingMineCount)}
+            </span>
+          )}
         </button>
       </nav>
     </>
