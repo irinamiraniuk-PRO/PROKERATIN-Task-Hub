@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar, { type View } from './Sidebar';
 import BottomNav from './BottomNav';
 import TopBar from './TopBar';
@@ -20,6 +20,29 @@ import OnboardingView from './OnboardingView';
 import NotesView from './NotesView';
 import { useApp } from '../context/AppContext';
 
+const VIEW_IDS: View[] = [
+  'dashboard',
+  'calendar-planner',
+  'week-planner',
+  'kanban',
+  'my-tasks',
+  'incoming',
+  'outgoing',
+  'waiting',
+  'pending-director',
+  'director-review',
+  'team',
+  'archive',
+  'settings',
+  'knowledge-base',
+  'notes',
+  'onboarding',
+];
+
+function isView(value: unknown): value is View {
+  return typeof value === 'string' && VIEW_IDS.includes(value as View);
+}
+
 export default function Layout() {
   const { state } = useApp();
   const [view, setView] = useState<View>('dashboard');
@@ -27,9 +50,39 @@ export default function Layout() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { currentUser, tasks } = state;
-  if (!currentUser) return null;
+  const isDirector = currentUser?.role === 'director';
 
-  const isDirector = currentUser.role === 'director';
+  function changeView(nextView: View, pushHistory = true) {
+    if (nextView === view) return;
+    setView(nextView);
+    setSearchQuery('');
+    if (pushHistory) {
+      window.history.pushState({ appView: nextView, appEntry: true }, '');
+    }
+  }
+
+  useEffect(() => {
+    window.history.replaceState({ appView: 'dashboard', appEntry: true }, '');
+  }, []);
+
+  useEffect(() => {
+    function handlePopState(event: PopStateEvent) {
+      const appView = event.state?.appView;
+      if (isView(appView)) {
+        setView(appView);
+        setSearchQuery('');
+        return;
+      }
+      setView('dashboard');
+      setSearchQuery('');
+      window.history.pushState({ appView: 'dashboard', appEntry: true }, '');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  if (!currentUser) return null;
 
   // All tasks visible to current user for kanban
   const visibleTasks = isDirector
@@ -42,8 +95,8 @@ export default function Layout() {
 
   function renderView() {
     switch (view) {
-      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => { setView(v); setSearchQuery(''); }} />;
-      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => { setView(v); setSearchQuery(''); }} />;
+      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} />;
+      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} />;
       case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
       case 'kanban': return (
         <div style={{ padding: '20px 24px' }}>
@@ -72,7 +125,7 @@ export default function Layout() {
       <div className="sidebar-wrapper">
         <Sidebar
           currentView={view}
-          onViewChange={v => { setView(v); setSearchQuery(''); }}
+          onViewChange={v => changeView(v)}
           onCreateTask={() => setShowCreate(true)}
         />
       </div>
@@ -84,7 +137,7 @@ export default function Layout() {
       </div>
       <BottomNav
         currentView={view}
-        onViewChange={v => { setView(v); setSearchQuery(''); }}
+        onViewChange={v => changeView(v)}
         onCreateTask={() => setShowCreate(true)}
       />
       {showCreate && <CreateTaskModal onClose={() => setShowCreate(false)} />}
