@@ -104,6 +104,15 @@ export interface Notification {
   read: boolean;
 }
 
+export interface Note {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -151,5 +160,5 @@ export interface AppState {
   users: User[];
   notifications: Notification[];
   projects: Project[];
+  notes: Note[];
 }
-

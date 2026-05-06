@@ -29,23 +29,25 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
   const unreadCount = notifications.filter(n => n.userId === currentUser.id && !n.read).length;
 
   return (
-    <header style={{
-      height: 56,
+    <header className="topbar-root" style={{
+      minHeight: 56,
       background: 'rgba(255,255,255,0.92)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid #EEECEA',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 20px',
+      padding: 'env(safe-area-inset-top, 0px) 20px 0',
       gap: 12,
       position: 'sticky',
       top: 0,
       zIndex: 100,
       flexShrink: 0,
+      width: '100%',
+      maxWidth: '100vw',
     }}>
       {/* Search */}
-      <div style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
+      <div className="topbar-search" style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
         <span aria-hidden="true" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#C0BDB9', pointerEvents: 'none' }}>
           ⌕
         </span>

@@ -280,11 +280,11 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const doneCount = checklist.filter(i => i.done).length;
 
   return (
-    <div style={{
+    <div className="modal-overlay-mobile" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
+      <div className="modal-fullscreen-mobile" style={{
         background: '#fff', borderRadius: 16, width: '100%', maxWidth: 760,
         maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         display: 'flex', flexDirection: 'column',

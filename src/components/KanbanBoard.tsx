@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task, TaskStatus } from '../types';
 import TaskModal from './TaskModal';
@@ -106,6 +106,14 @@ export default function KanbanBoard({ tasks, searchQuery = '' }: KanbanBoardProp
   const { kanbanMove, state } = useApp();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [dragOverCol, setDragOverCol] = useState<TaskStatus | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [mobileStatus, setMobileStatus] = useState<TaskStatus>('new');
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const filtered = tasks.filter(t => {
     if (!searchQuery) return true;
@@ -140,16 +148,45 @@ export default function KanbanBoard({ tasks, searchQuery = '' }: KanbanBoardProp
   }
 
   const isEmpty = COLUMNS.every(col => tasksByStatus[col.status].length === 0);
+  const visibleColumns = isMobile ? COLUMNS.filter(col => col.status === mobileStatus) : COLUMNS;
 
   return (
-    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 12, minHeight: 'calc(100vh - 130px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflow: 'hidden', paddingBottom: 12, minHeight: 'calc(100vh - 130px)', width: '100%', maxWidth: '100vw' }}>
+      {isMobile && (
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {COLUMNS.map(col => {
+            const active = mobileStatus === col.status;
+            const count = tasksByStatus[col.status].length;
+            return (
+              <button
+                key={col.status}
+                onClick={() => setMobileStatus(col.status)}
+                style={{
+                  minHeight: 44,
+                  borderRadius: 10,
+                  border: `1px solid ${active ? col.color : '#E5E7EB'}`,
+                  background: active ? `${col.color}12` : '#fff',
+                  padding: '6px 10px',
+                  whiteSpace: 'nowrap',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: active ? col.color : '#555',
+                }}
+              >
+                {col.emoji} {STATUS_LABELS[col.status]} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, overflowX: 'hidden', width: '100%' }}>
       {isEmpty && (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: '#bbb', fontSize: 14, flex: 1 }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
           Нет задач для отображения
         </div>
       )}
-      {COLUMNS.map(col => {
+      {visibleColumns.map(col => {
         const colTasks = tasksByStatus[col.status];
         const isOver = dragOverCol === col.status;
 
@@ -160,8 +197,9 @@ export default function KanbanBoard({ tasks, searchQuery = '' }: KanbanBoardProp
             onDragLeave={() => setDragOverCol(null)}
             onDrop={e => handleDrop(e, col.status)}
             style={{
-              minWidth: 220,
-              maxWidth: 240,
+              minWidth: isMobile ? 0 : 220,
+              maxWidth: isMobile ? '100%' : 240,
+              width: isMobile ? '100%' : undefined,
               flexShrink: 0,
               display: 'flex',
               flexDirection: 'column',
@@ -230,6 +268,7 @@ export default function KanbanBoard({ tasks, searchQuery = '' }: KanbanBoardProp
           </div>
         );
       })}
+      </div>
 
       {selectedTask && (
         <TaskModal
