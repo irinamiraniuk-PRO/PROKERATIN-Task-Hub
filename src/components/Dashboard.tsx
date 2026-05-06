@@ -1,32 +1,69 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
-import type { View } from './Sidebar';
-import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
-import { isStuck, getSmartHints, type SmartHint } from '../utils/taskAlerts';
 
 const TZ = 'Europe/Minsk';
 
-function toMinskDateStr(date: Date): string {
-  return date.toLocaleDateString('en-CA', { timeZone: TZ });
-}
+// ── Dark luxury palette ───────────────────────────────────────────────
+const GOLD        = '#C9A84C';
+const GOLD_BORDER = 'rgba(201,168,76,0.2)';
+const GOLD_BG     = 'rgba(201,168,76,0.1)';
+const BG_MAIN     = '#0A0A0A';
+const BG_CARD     = '#131210';
+const BG_ELEVATED = '#1C1A16';
+const BG_INPUT    = '#18160F';
+const BORDER      = 'rgba(255,255,255,0.07)';
+const TEXT        = '#F0EBE0';
+const TEXT2       = '#9A8E7A';
+const TEXT3       = '#4A4438';
 
+// ── Status / Priority helpers ─────────────────────────────────────────
+const STATUS_MAP: Record<string, { label: string; color: string }> = {
+  new:                     { label: 'Новая',           color: GOLD },
+  accepted:                { label: 'Принята',         color: '#8AAFC0' },
+  in_progress:             { label: 'В работе',        color: '#8AAFC0' },
+  waiting_response:        { label: 'Жду ответа',      color: '#D4944A' },
+  transferred:             { label: 'Передана',        color: '#A07850' },
+  pending_director_review: { label: 'На проверке',     color: '#C8B460' },
+  returned_for_revision:   { label: 'На доработку',    color: '#B85858' },
+  completed:               { label: 'Выполнена',       color: '#5FA87A' },
+  closed:                  { label: 'Закрыта',         color: '#4A7A5A' },
+  postponed:               { label: 'Отложена',        color: '#706858' },
+  overdue:                 { label: 'Просрочена',      color: '#B85858' },
+  blocked:                 { label: 'Заблок.',         color: '#806878' },
+};
+
+const PRIORITY_COLOR: Record<string, string> = {
+  urgent: '#B85858',
+  high:   GOLD,
+  medium: '#8AAFC0',
+  low:    '#3E3830',
+};
+
+// ── Quick Notes (localStorage) ────────────────────────────────────────
+const MAX_NOTES = 20;
+type Note = { id: string; text: string; createdAt: string };
+const NOTES_KEY = 'prokeratin_quick_notes_v1';
+
+function loadNotes(): Note[] {
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY) ?? '[]') as Note[]; }
+  catch { return []; }
+}
+function saveNotes(notes: Note[]): void {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+function mkId(): string { return Math.random().toString(36).slice(2); }
+
+// ── Helpers ───────────────────────────────────────────────────────────
 function getMondayOfWeek(date: Date): Date {
   const localStr = date.toLocaleDateString('en-CA', { timeZone: TZ });
   const [y, m, d] = localStr.split('-').map(Number);
   const local = new Date(y, m - 1, d);
   const day = local.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  local.setDate(local.getDate() + diff);
+  local.setDate(local.getDate() + (day === 0 ? -6 : 1 - day));
   return local;
 }
-
-function isSameDayStr(isoA: string, dateStrB: string): boolean {
-  const a = new Date(isoA);
-  return a.toLocaleDateString('en-CA', { timeZone: TZ }) === dateStrB;
-}
-
 function isInCurrentWeek(iso: string, monday: Date): boolean {
   const d = new Date(iso);
   const dStr = d.toLocaleDateString('en-CA', { timeZone: TZ });
@@ -36,223 +73,222 @@ function isInCurrentWeek(iso: string, monday: Date): boolean {
   sunday.setDate(monday.getDate() + 6);
   return dLocal >= monday && dLocal <= sunday;
 }
-
-function StatCard({ label, value, sub, color, emoji, highlight, onClick }: {
-  label: string; value: number | string; sub?: string; color: string; emoji?: string; highlight?: boolean; onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        background: highlight ? color : '#fff',
-        borderRadius: 10,
-        padding: '14px 16px',
-        border: highlight ? 'none' : '1px solid #EEECEA',
-        boxShadow: highlight ? `0 4px 16px ${color}35` : '0 1px 3px rgba(0,0,0,0.04)',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: onClick ? 'opacity 0.15s, transform 0.15s' : undefined,
-      }}
-      onMouseEnter={onClick ? e => { (e.currentTarget as HTMLDivElement).style.opacity = '0.85'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'; } : undefined}
-      onMouseLeave={onClick ? e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; (e.currentTarget as HTMLDivElement).style.transform = ''; } : undefined}
-    >
-      <div style={{
-        fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px',
-        marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4,
-        color: highlight ? 'rgba(255,255,255,0.75)' : '#ADADAD',
-      }}>
-        {emoji && <span>{emoji}</span>}{label}
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: highlight ? '#fff' : color, lineHeight: 1, letterSpacing: '-0.5px' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, marginTop: 5, color: highlight ? 'rgba(255,255,255,0.65)' : '#C0BDB9' }}>{sub}</div>}
-    </div>
-  );
+function greeting(firstName: string): string {
+  const currentHour = parseInt(new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false }));
+  if (currentHour < 12) return `Доброе утро, ${firstName}`;
+  if (currentHour < 18) return `Добрый день, ${firstName}`;
+  return `Добрый вечер, ${firstName}`;
+}
+function fmtShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU', { timeZone: TZ, day: 'numeric', month: 'short' });
+}
+function formatDaysLeft(daysLeft: number): string {
+  if (daysLeft === 0) return 'Сегодня';
+  if (daysLeft === 1) return 'Завтра';
+  return `${daysLeft} дн.`;
 }
 
-function SectionHeader({ emoji, title, count, color }: { emoji: string; title: string; count?: number; color?: string }) {
+// ── Sub-components ────────────────────────────────────────────────────
+
+function SectionHead({ title, count, action, onAction }: {
+  title: string; count?: number; action?: string; onAction?: () => void;
+}) {
   return (
-    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '-0.1px' }}>
-      <span>{emoji}</span>
-      <span>{title}</span>
-      {count !== undefined && count > 0 && (
-        <span style={{ fontSize: 10.5, fontWeight: 600, padding: '1px 7px', borderRadius: 100, background: (color ?? '#EF4444') + '18', color: color ?? '#EF4444' }}>
-          {count}
-        </span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          width: 2, height: 14, borderRadius: 1,
+          background: `linear-gradient(180deg, ${GOLD}, ${GOLD}50)`,
+          flexShrink: 0,
+        }} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: TEXT, letterSpacing: '-0.1px' }}>{title}</span>
+        {count !== undefined && count > 0 && (
+          <span style={{
+            fontSize: 10, fontWeight: 600, color: GOLD,
+            background: GOLD_BG, padding: '1px 7px', borderRadius: 10,
+          }}>{count}</span>
+        )}
+      </div>
+      {action && onAction && (
+        <button
+          onClick={onAction}
+          style={{
+            border: 'none', background: 'none', cursor: 'pointer',
+            fontSize: 11, color: TEXT2, fontFamily: 'var(--font)', padding: '2px 0',
+          }}
+        >
+          {action} ›
+        </button>
       )}
     </div>
   );
 }
 
-function EmptyState({ icon, text }: { icon: string; text: string }) {
+function DarkEmpty({ text }: { text: string }) {
   return (
-    <div style={{ fontSize: 13, color: '#C0BDB9', textAlign: 'center', padding: '20px 0' }}>
-      <div style={{ fontSize: 22, marginBottom: 7 }}>{icon}</div>
+    <div style={{ padding: '14px 0', textAlign: 'center', color: TEXT3, fontSize: 12 }}>
       {text}
     </div>
   );
 }
 
-function MiniCalendar({ today, onDayClick }: { today: Date; onDayClick?: (d: Date) => void }) {
-  const [viewDate, setViewDate] = useState(() => {
-    const localStr = today.toLocaleDateString('en-CA', { timeZone: TZ });
-    const [y, m] = localStr.split('-').map(Number);
-    return new Date(y, m - 1, 1);
-  });
-
-  const todayStr = today.toLocaleDateString('en-CA', { timeZone: TZ });
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-
-  const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-  const cells: (Date | null)[] = [];
-  for (let i = 0; i < startOffset; i++) cells.push(null);
-  for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(year, month, d));
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const monthName = viewDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+function TaskRow({ task, onClick }: { task: Task; onClick: () => void }) {
+  const st = STATUS_MAP[task.status] ?? { label: task.status, color: TEXT2 };
+  const pcolor = PRIORITY_COLOR[task.priority] ?? TEXT3;
+  const overdueFlag = new Date(task.deadline) < new Date() && !['completed', 'closed'].includes(task.status);
+  const done = task.checklist && task.checklist.length > 0
+    ? Math.round((task.checklist.filter(i => i.done).length / task.checklist.length) * 100)
+    : null;
 
   return (
-    <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#ADADAD', padding: '2px 6px', borderRadius: 5, transition: 'color 0.12s' }}>‹</button>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A', textTransform: 'capitalize', letterSpacing: '-0.1px' }}>{monthName}</div>
-        <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#ADADAD', padding: '2px 6px', borderRadius: 5, transition: 'color 0.12s' }}>›</button>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' }}>
-        {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
-          <div key={d} style={{ fontSize: 10, fontWeight: 600, color: '#C0BDB9', padding: '3px 0' }}>{d}</div>
-        ))}
-        {cells.map((cell, i) => {
-          if (!cell) return <div key={i} />;
-          const cellStr = cell.toLocaleDateString('en-CA');
-          const isToday = cellStr === todayStr;
-          return (
-            <div
-              key={i}
-              onClick={() => onDayClick?.(cell)}
-              style={{
-                fontSize: 11.5, padding: '4px 2px', borderRadius: 5, cursor: onDayClick ? 'pointer' : 'default',
-                background: isToday ? '#BE185D' : 'transparent',
-                color: isToday ? '#fff' : cell.getDay() === 0 || cell.getDay() === 6 ? '#F97316' : '#3A3A3A',
-                fontWeight: isToday ? 700 : 400,
-                transition: 'background 0.12s',
-              }}
-            >
-              {cell.getDate()}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function TaskSection({ title, emoji, tasks, onSelect, emptyIcon, emptyText, accentColor, maxItems = 6 }: {
-  title: string; emoji: string; tasks: Task[]; onSelect: (t: Task) => void;
-  emptyIcon: string; emptyText: string; accentColor?: string; maxItems?: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? tasks : tasks.slice(0, maxItems);
-  return (
-    <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-      <SectionHeader emoji={emoji} title={title} count={tasks.length} color={accentColor} />
-      {tasks.length === 0 ? (
-        <EmptyState icon={emptyIcon} text={emptyText} />
-      ) : (
-        <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {shown.map(t => <TaskCard key={t.id} task={t} onClick={onSelect} />)}
-          </div>
-          {tasks.length > maxItems && (
-            <button
-              onClick={() => setExpanded(e => !e)}
-              style={{ marginTop: 9, width: '100%', padding: '7px', border: '1px solid #EEECEA', borderRadius: 7, background: '#F7F7F5', cursor: 'pointer', fontSize: 12, color: '#6B6B6B', fontWeight: 500, fontFamily: 'var(--font)', transition: 'background 0.12s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#EEECEA'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#F7F7F5'; }}
-            >
-              {expanded ? '▲ Свернуть' : `▼ Показать ещё ${tasks.length - maxItems}`}
-            </button>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 11,
+        padding: '11px 13px',
+        background: BG_ELEVATED,
+        borderRadius: 10,
+        border: `1px solid ${BORDER}`,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s, background 0.15s',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLDivElement).style.borderColor = GOLD_BORDER;
+        (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLDivElement).style.borderColor = BORDER;
+        (e.currentTarget as HTMLDivElement).style.background = BG_ELEVATED;
+      }}
+    >
+      <div style={{ width: 3, minHeight: 32, borderRadius: 2, background: pcolor, flexShrink: 0, alignSelf: 'stretch' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 13, fontWeight: 500, color: TEXT,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          marginBottom: 4,
+        }}>
+          {task.title}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{
+            fontSize: 10, fontWeight: 600, color: st.color,
+            padding: '1px 6px', borderRadius: 4,
+            background: `${st.color}18`, letterSpacing: '0.1px',
+          }}>
+            {st.label}
+          </span>
+          {task.tags && task.tags.length > 0 && (
+            <span style={{ fontSize: 10, color: TEXT3 }}>#{task.tags[0]}</span>
           )}
-        </>
-      )}
+          <span style={{ fontSize: 10, color: overdueFlag ? '#B85858' : TEXT3 }}>
+            {overdueFlag ? '⚠ ' : ''}{fmtShort(task.deadline)}
+          </span>
+          {done !== null && (
+            <span style={{ fontSize: 10, color: TEXT3 }}>☑ {done}%</span>
+          )}
+        </div>
+      </div>
+      <div style={{ color: TEXT3, fontSize: 15, flexShrink: 0 }}>›</div>
     </div>
   );
 }
 
-function SmartHintsPanel({ hints, onTaskClick }: { hints: SmartHint[]; onTaskClick?: (taskId: string) => void }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const visible = hints.filter(h => !dismissed.has(h.id));
-  if (visible.length === 0) return null;
-
-  const bg: Record<SmartHint['type'], string> = {
-    danger: '#FEF2F2',
-    warning: '#FFFBEB',
-    info: '#EFF6FF',
-  };
-  const border: Record<SmartHint['type'], string> = {
-    danger: '#FECACA',
-    warning: '#FDE68A',
-    info: '#BFDBFE',
-  };
-  const textColor: Record<SmartHint['type'], string> = {
-    danger: '#B91C1C',
-    warning: '#92400E',
-    info: '#1D4ED8',
-  };
-
+function IncomingRow({ task, fromName, onClick }: { task: Task; fromName: string; onClick: () => void }) {
+  const initials = fromName.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.1px' }}>
-        <span>💡</span> Умные подсказки
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 13px',
+        background: BG_ELEVATED,
+        borderRadius: 10,
+        border: `1px solid ${BORDER}`,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = GOLD_BORDER; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = BORDER; }}
+    >
+      <div style={{
+        width: 28, height: 28, borderRadius: '50%',
+        background: `linear-gradient(135deg, ${GOLD}60, ${GOLD}25)`,
+        border: `1px solid ${GOLD_BORDER}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 10, fontWeight: 700, color: GOLD, flexShrink: 0,
+      }}>
+        {initials}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {visible.map(hint => (
-          <div
-            key={hint.id}
-            style={{
-              background: bg[hint.type], border: `1px solid ${border[hint.type]}`,
-              borderRadius: 8, padding: '9px 12px',
-              display: 'flex', alignItems: 'center', gap: 9,
-              cursor: hint.taskId ? 'pointer' : 'default',
-            }}
-            onClick={hint.taskId ? () => onTaskClick?.(hint.taskId!) : undefined}
-          >
-            <span style={{ fontSize: 15, flexShrink: 0 }}>{hint.emoji}</span>
-            <span style={{ flex: 1, fontSize: 12, fontWeight: 500, color: textColor[hint.type] }}>{hint.text}</span>
-            <button
-              onClick={e => { e.stopPropagation(); setDismissed(d => new Set([...d, hint.id])); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#ADADAD', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
-              title="Скрыть подсказку"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 12.5, fontWeight: 500, color: TEXT,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {task.title}
+        </div>
+        <div style={{ fontSize: 10, color: TEXT2, marginTop: 2 }}>
+          от {fromName} · {fmtShort(task.createdAt)}
+        </div>
       </div>
+      <div style={{ color: TEXT3, fontSize: 15, flexShrink: 0 }}>›</div>
     </div>
   );
 }
 
-export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: string; onViewChange?: (view: View) => void }) {
+function KpiCard({ icon, value, label, highlight }: {
+  icon: string; value: number | string; label: string; highlight?: boolean;
+}) {
+  return (
+    <div style={{
+      background: highlight ? GOLD_BG : BG_CARD,
+      border: `1px solid ${highlight ? GOLD_BORDER : BORDER}`,
+      borderRadius: 14,
+      padding: '16px 14px',
+      display: 'flex', flexDirection: 'column', gap: 6,
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {highlight && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+          background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
+        }} />
+      )}
+      <div style={{ fontSize: 17, lineHeight: 1 }}>{icon}</div>
+      <div style={{
+        fontSize: 26, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.5px',
+        color: highlight ? GOLD : TEXT,
+      }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 11, color: TEXT2, fontWeight: 500, letterSpacing: '0.1px' }}>{label}</div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────
+export default function Dashboard({
+  searchQuery,
+  onViewChange,
+}: {
+  searchQuery: string;
+  onViewChange?: (v: string) => void;
+}) {
   const { state } = useApp();
-  const { tasks, currentUser, users } = state;
+  const { tasks, currentUser, users, notifications } = state;
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [notes, setNotes] = useState<Note[]>(loadNotes);
+  const [noteInput, setNoteInput] = useState('');
 
   if (!currentUser) return null;
 
   const now = new Date();
-  const todayStr = toMinskDateStr(now);
-  const tomorrowDate = new Date(now);
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrowStr = toMinskDateStr(tomorrowDate);
   const monday = getMondayOfWeek(now);
-
   const isDirector = currentUser.role === 'director';
   const firstName = currentUser.name.split(' ')[0];
+  const initials = currentUser.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  const userColor = currentUser.color ?? GOLD;
+  const unreadCount = notifications.filter(n => n.userId === currentUser.id && !n.read).length;
 
   const myTasks = isDirector
     ? tasks
@@ -262,344 +298,528 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
         t.transferredTo === currentUser.id
       );
 
-  const activeTasks = myTasks.filter(t => !['closed'].includes(t.status));
-
   function applySearch(list: Task[]): Task[] {
     if (!searchQuery) return list;
     const q = searchQuery.toLowerCase();
     return list.filter(t => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q));
   }
 
-  // Today tasks
-  const todayTasks = applySearch(myTasks.filter(t => {
-    const isPlannedToday = t.plannedDate && isSameDayStr(t.plannedDate, todayStr);
-    const isDeadlineToday = isSameDayStr(t.deadline, todayStr);
-    return (isPlannedToday || isDeadlineToday) && !['completed', 'closed'].includes(t.status);
-  }));
+  // KPI counts
+  const totalCount      = myTasks.length;
+  const activeCount     = myTasks.filter(t => !['completed', 'closed'].includes(t.status)).length;
+  const pendingReviewCount = myTasks.filter(t => t.status === 'pending_director_review').length;
+  const completedCount  = myTasks.filter(t => ['completed', 'closed'].includes(t.status)).length;
 
-  // Tomorrow tasks
-  const tomorrowTasks = applySearch(myTasks.filter(t => {
-    const isPlannedTomorrow = t.plannedDate && isSameDayStr(t.plannedDate, tomorrowStr);
-    const isDeadlineTomorrow = isSameDayStr(t.deadline, tomorrowStr);
-    return (isPlannedTomorrow || isDeadlineTomorrow) && !['completed', 'closed'].includes(t.status);
-  }));
+  // Block 3 — My active tasks (sorted by deadline, up to 5)
+  const myActiveTasks = applySearch(
+    myTasks
+      .filter(t => !['completed', 'closed'].includes(t.status))
+      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+  ).slice(0, 5);
 
-  // Week tasks (Mon-Sun)
-  const weekTasks = applySearch(myTasks.filter(t =>
+  // Block 4 — Incoming
+  const incomingTasks = applySearch(tasks.filter(t => {
+    if (t.transferredTo === currentUser.id && t.status === 'transferred') return true;
+    if (t.assignedTo === currentUser.id && t.status === 'new' && t.createdBy !== currentUser.id) return true;
+    return false;
+  })).slice(0, 4);
+
+  // Director: also show tasks pending review
+  const pendingReviewList = isDirector
+    ? applySearch(tasks.filter(t => t.status === 'pending_director_review')).slice(0, 4)
+    : [];
+
+  // Block 6 — Upcoming deadlines (next 7 days) or week tasks
+  const in7 = new Date(now);
+  in7.setDate(in7.getDate() + 7);
+  const upcomingTasks = applySearch(
+    myTasks
+      .filter(t => {
+        const d = new Date(t.deadline);
+        return d >= now && d <= in7 && !['completed', 'closed'].includes(t.status);
+      })
+      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+  ).slice(0, 5);
+
+  // Week progress
+  const weekTasks = myTasks.filter(t =>
     isInCurrentWeek(t.plannedDate ?? t.deadline, monday) && !['completed', 'closed'].includes(t.status)
-  ));
-
-  // Overdue
-  const overdueTasks = applySearch(activeTasks.filter(t =>
-    t.status === 'overdue' || (new Date(t.deadline) < now && !['completed', 'closed'].includes(t.status))
-  ));
-
-  // Pending director review
-  const pendingReviewTasks = applySearch(myTasks.filter(t => t.status === 'pending_director_review'));
-
-  // Waiting response
-  const waitingTasks = applySearch(myTasks.filter(t => t.status === 'waiting_response'));
-
-  // Stats
-  const completedToday = myTasks.filter(t =>
-    ['completed', 'closed'].includes(t.status) && isSameDayStr(t.deadline, todayStr)
+  );
+  const weekDone = myTasks.filter(t =>
+    ['completed', 'closed'].includes(t.status) && isInCurrentWeek(t.deadline, monday)
   ).length;
-  const dayTotal = todayTasks.length + completedToday;
-  const dayPct = dayTotal > 0 ? Math.round((completedToday / dayTotal) * 100) : 0;
+  const weekTotal = weekTasks.length + weekDone;
+  const weekPct = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0;
 
-  const inProgress = activeTasks.filter(t => t.status === 'in_progress').length;
+  // Overdue count for alert
+  const overdueCount = myTasks.filter(t =>
+    t.status === 'overdue' || (new Date(t.deadline) < now && !['completed', 'closed'].includes(t.status))
+  ).length;
 
-  // Week efficiency
-  const weekDoneCount = myTasks.filter(t => ['completed', 'closed'].includes(t.status) && isInCurrentWeek(t.deadline, monday)).length;
-  const weekEfficiency = weekTasks.length + weekDoneCount > 0 ? Math.round((weekDoneCount / (weekTasks.length + weekDoneCount)) * 100) : 0;
+  // Notes handlers
+  function addNote() {
+    const text = noteInput.trim();
+    if (!text) return;
+    const updated = [{ id: mkId(), text, createdAt: new Date().toISOString() }, ...notes].slice(0, MAX_NOTES);
+    setNotes(updated);
+    saveNotes(updated);
+    setNoteInput('');
+  }
+  function deleteNote(id: string) {
+    const updated = notes.filter(n => n.id !== id);
+    setNotes(updated);
+    saveNotes(updated);
+  }
 
-  const totalCompleted = myTasks.filter(t => ['completed', 'closed'].includes(t.status)).length;
-  const totalEff = myTasks.length > 0 ? Math.round((totalCompleted / myTasks.length) * 100) : 0;
-
-  // Stuck tasks (no activity > 3 days)
-  const stuckTasks = applySearch(activeTasks.filter(t =>
-    !['completed', 'closed'].includes(t.status) && isStuck(t)
-  ));
-
-  // Smart hints
-  const smartHints = getSmartHints(tasks, users, currentUser.id, isDirector);
-
-  // Director extras
+  // Director employee summary
   const employees = users.filter(u => u.role === 'employee');
 
-  const dayName = now.toLocaleDateString('ru-RU', { timeZone: TZ, weekday: 'long' });
-  const dateLabel = now.toLocaleDateString('ru-RU', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' });
-  const timeLabel = now.toLocaleTimeString('ru-RU', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
-
   return (
-    <div className="anim-fade-in" style={{ padding: '22px 26px 32px', maxWidth: 1140 }}>
+    <div style={{ background: BG_MAIN, minHeight: '100%' }}>
 
-      {/* Welcome bar */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: '0 0 3px', fontSize: 20, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.5px' }}>
-          {firstName}, твой план на сегодня 🌟
-        </h1>
-        <div style={{ fontSize: 12.5, color: '#ADADAD', textTransform: 'capitalize', fontWeight: 400 }}>
-          Сегодня: {dayName}, {dateLabel}, Минск • {timeLabel}
-        </div>
-      </div>
+      {/* ── Block 1: Hero Header ──────────────────────────────────── */}
+      <div style={{
+        background: 'linear-gradient(160deg, #141210 0%, #0D0C09 55%, #0A0A0A 100%)',
+        borderBottom: `1px solid ${GOLD_BORDER}`,
+        padding: '20px 18px 24px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Gold shimmer line */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+          background: `linear-gradient(90deg, transparent 0%, ${GOLD}70 50%, transparent 100%)`,
+        }} />
+        {/* Subtle background glow */}
+        <div style={{
+          position: 'absolute', top: -60, right: -40, width: 180, height: 180,
+          borderRadius: '50%',
+          background: `radial-gradient(circle, ${GOLD}08 0%, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
 
-      {/* Alert banners */}
-      {(overdueTasks.length > 0 || pendingReviewTasks.length > 0 || waitingTasks.length > 0) && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          {overdueTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.('my-tasks')}
-              style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
-              <span style={{ fontSize: 14 }}>⚠️</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>Просрочено: {overdueTasks.length}</span>
-            </div>
-          )}
-          {pendingReviewTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.(isDirector ? 'director-review' : 'pending-director')}
-              style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
-              <span style={{ fontSize: 14 }}>🔍</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#B45309' }}>На проверке: {pendingReviewTasks.length}</span>
-            </div>
-          )}
-          {waitingTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.('waiting')}
-              style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
-              <span style={{ fontSize: 14 }}>⏳</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#C2410C' }}>Ждут ответа: {waitingTasks.length}</span>
-            </div>
-          )}
-          {stuckTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.('my-tasks')}
-              style={{ background: '#F7F7F5', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
-              <span style={{ fontSize: 14 }}>😴</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Зависли: {stuckTasks.length}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Smart hints */}
-      <SmartHintsPanel
-        hints={smartHints}
-        onTaskClick={taskId => {
-          const t = tasks.find(x => x.id === taskId);
-          if (t) setSelectedTask(t);
-        }}
-      />
-
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 9, marginBottom: 20 }}>
-        <StatCard emoji="📅" label="Сегодня" value={todayTasks.length} sub="запланировано" color="#BE185D" highlight={todayTasks.length > 0} onClick={todayTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-        <StatCard emoji="✅" label="Выполнено" value={completedToday} sub="сегодня" color="#059669" />
-        <StatCard emoji="📊" label="% дня" value={`${dayPct}%`} sub="выполнения" color={dayPct >= 70 ? '#059669' : dayPct >= 40 ? '#D97706' : '#6366F1'} />
-        <StatCard emoji="▶️" label="В работе" value={inProgress} sub="активных" color="#1D4ED8" onClick={inProgress > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-        <StatCard emoji="⏳" label="Жду ответ" value={waitingTasks.length} sub="ожидание" color="#F97316" onClick={waitingTasks.length > 0 ? () => onViewChange?.('waiting') : undefined} />
-        <StatCard emoji="🔍" label="На проверке" value={pendingReviewTasks.length} sub="у директора" color="#D97706" onClick={pendingReviewTasks.length > 0 ? () => onViewChange?.(isDirector ? 'director-review' : 'pending-director') : undefined} />
-        <StatCard emoji="⚠️" label="Просрочено" value={overdueTasks.length} sub="нужно действие" color="#B91C1C" highlight={overdueTasks.length > 0} onClick={overdueTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-        <StatCard emoji="😴" label="Зависли" value={stuckTasks.length} sub="без движения" color="#6B7280" highlight={stuckTasks.length > 0} onClick={stuckTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-      </div>
-
-      {/* Calendar + efficiency row */}
-      <div className="responsive-grid-3" style={{ marginBottom: 20 }}>
-
-        {/* Efficiency panel */}
-        <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <SectionHeader emoji="📈" title="Эффективность" />
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <div style={{ fontSize: 12, color: '#6B6B6B' }}>За неделю</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: weekEfficiency >= 70 ? '#059669' : weekEfficiency >= 40 ? '#D97706' : '#EF4444', letterSpacing: '-0.3px' }}>{weekEfficiency}%</div>
-            </div>
-            <div style={{ height: 6, background: '#F1F0EE', borderRadius: 4, overflow: 'hidden', marginBottom: 4 }}>
-              <div style={{ height: '100%', borderRadius: 4, width: `${weekEfficiency}%`, background: weekEfficiency >= 70 ? '#10B981' : weekEfficiency >= 40 ? '#F59E0B' : '#EF4444', transition: 'width 0.4s' }} />
-            </div>
-            <div style={{ fontSize: 11, color: '#ADADAD' }}>{weekDoneCount} из {weekTasks.length + weekDoneCount} задач</div>
-          </div>
+        {/* Top row: Logo + controls */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <div style={{ fontSize: 12, color: '#6B6B6B' }}>Общая</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: totalEff >= 70 ? '#059669' : totalEff >= 40 ? '#D97706' : '#EF4444', letterSpacing: '-0.3px' }}>{totalEff}%</div>
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '3px',
+              color: TEXT3, textTransform: 'uppercase', lineHeight: 1, marginBottom: 3,
+            }}>
+              PROKERATIN
             </div>
-            <div style={{ height: 6, background: '#F1F0EE', borderRadius: 4, overflow: 'hidden', marginBottom: 4 }}>
-              <div style={{ height: '100%', borderRadius: 4, width: `${totalEff}%`, background: totalEff >= 70 ? '#10B981' : totalEff >= 40 ? '#F59E0B' : '#EF4444', transition: 'width 0.4s' }} />
+            <div style={{
+              fontSize: 13, fontWeight: 700, letterSpacing: '2px',
+              color: GOLD, textTransform: 'uppercase', lineHeight: 1,
+            }}>
+              TASK HUB
             </div>
-            <div style={{ fontSize: 11, color: '#ADADAD' }}>{totalCompleted} из {myTasks.length} всего</div>
           </div>
-
-          <div style={{ borderTop: '1px solid #F1F0EE', marginTop: 12, paddingTop: 12 }}>
-            <SectionHeader emoji="📊" title="Сводка статусов" />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {[
-                { label: 'В работе', value: inProgress, color: '#1D4ED8', bg: '#EFF6FF' },
-                { label: 'Жду ответа', value: waitingTasks.length, color: '#F97316', bg: '#FFF7ED' },
-                { label: 'На проверке', value: pendingReviewTasks.length, color: '#D97706', bg: '#FFFBEB' },
-                { label: 'Просрочено', value: overdueTasks.length, color: '#EF4444', bg: '#FEF2F2' },
-                { label: 'Выполнено', value: totalCompleted, color: '#059669', bg: '#ECFDF5' },
-              ].map(s => (
-                <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderRadius: 6, background: '#F7F7F5' }}>
-                  <div style={{ fontSize: 12, color: '#6B6B6B' }}>{s.label}</div>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, padding: '1px 7px', borderRadius: 5, background: s.bg, color: s.color }}>{s.value}</span>
-                </div>
-              ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Bell */}
+            <div style={{ position: 'relative' }}>
+              <button style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: `1px solid ${GOLD_BORDER}`,
+                background: 'rgba(255,255,255,0.04)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 15, color: TEXT2,
+                transition: 'background 0.12s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = GOLD_BG; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+              >
+                🔔
+              </button>
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: -2, right: -2,
+                  background: GOLD, color: '#0A0A0A',
+                  fontSize: 9, fontWeight: 800,
+                  borderRadius: 100, padding: '1px 4px', minWidth: 14, textAlign: 'center',
+                  lineHeight: '13px',
+                }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
+            {/* Avatar */}
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              border: `1.5px solid ${GOLD_BORDER}`,
+              background: `linear-gradient(135deg, ${userColor}60, ${userColor}25)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, color: GOLD,
+            }}>
+              {initials}
             </div>
           </div>
         </div>
 
-        {/* Today tasks */}
-        <TaskSection
-          emoji="🗓️"
-          title="Задачи на сегодня"
-          tasks={todayTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="☀️"
-          emptyText="Нет задач на сегодня"
-          accentColor="#BE185D"
-          maxItems={5}
-        />
-
-        {/* Mini calendar */}
-        <MiniCalendar today={now} />
+        {/* Greeting */}
+        <div>
+          <div style={{
+            fontSize: 23, fontWeight: 700, color: TEXT,
+            letterSpacing: '-0.5px', lineHeight: 1.2, marginBottom: 7,
+          }}>
+            {greeting(firstName)}
+          </div>
+          <div style={{ fontSize: 13, color: TEXT2, fontWeight: 400, lineHeight: 1.5 }}>
+            {activeCount > 0
+              ? <>
+                  <span style={{ color: GOLD, fontWeight: 600 }}>{activeCount}</span> активных задач
+                  {pendingReviewCount > 0 && <> · <span style={{ color: '#C8B460', fontWeight: 600 }}>{pendingReviewCount}</span> на проверке</>}
+                  {overdueCount > 0 && <> · <span style={{ color: '#B85858', fontWeight: 600 }}>{overdueCount}</span> просрочено</>}
+                </>
+              : 'Нет активных задач — отличный день!'}
+          </div>
+        </div>
       </div>
 
-      {/* Tomorrow + Week row */}
-      <div className="responsive-grid-2" style={{ marginBottom: 20 }}>
-        <TaskSection
-          emoji="⏭️"
-          title="Задачи на завтра"
-          tasks={tomorrowTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="🌅"
-          emptyText="Нет задач на завтра"
-          accentColor="#6366F1"
-          maxItems={5}
-        />
-        <TaskSection
-          emoji="📆"
-          title="Задачи на неделю"
-          tasks={weekTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="🗂️"
-          emptyText="Нет задач на этой неделе"
-          accentColor="#1D4ED8"
-          maxItems={5}
-        />
-      </div>
+      {/* ── Main content ─────────────────────────────────────────── */}
+      <div style={{ padding: '18px 16px 8px' }}>
 
-      {/* Overdue + Pending review + Waiting + Stuck row */}
-      <div className="responsive-grid-4" style={{ marginBottom: 20 }}>
-        <TaskSection
-          emoji="🔥"
-          title="Просроченные"
-          tasks={overdueTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="🎉"
-          emptyText="Нет просроченных задач"
-          accentColor="#B91C1C"
-          maxItems={4}
-        />
-        <TaskSection
-          emoji="🔍"
-          title="На проверке у директора"
-          tasks={pendingReviewTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="✅"
-          emptyText="Нет задач на проверке"
-          accentColor="#D97706"
-          maxItems={4}
-        />
-        <TaskSection
-          emoji="⏳"
-          title="Ждут ответа"
-          tasks={waitingTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="📨"
-          emptyText="Нет задач, ожидающих ответа"
-          accentColor="#F97316"
-          maxItems={4}
-        />
-        <TaskSection
-          emoji="😴"
-          title="Зависшие задачи"
-          tasks={stuckTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="✓"
-          emptyText="Нет зависших задач"
-          accentColor="#6B7280"
-          maxItems={4}
-        />
-      </div>
+        {/* ── Block 2: KPI Cards ──────────────────────────────────── */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          gap: 10, marginBottom: 18,
+        }}>
+          <KpiCard icon="◈" value={totalCount}        label="Всего задач"  />
+          <KpiCard icon="▶" value={activeCount}        label="Активные"    highlight={activeCount > 0} />
+          <KpiCard icon="◎" value={pendingReviewCount} label="На проверке" highlight={pendingReviewCount > 0} />
+          <KpiCard icon="✓" value={completedCount}     label="Выполнено"   />
+        </div>
 
-      {/* Director extras */}
-      {isDirector && (
-        <div style={{ marginTop: 8 }}>
-          <h2 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-0.2px' }}>◈ Команда</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-            {employees.map(emp => {
-              const empTasks = tasks.filter(t => t.assignedTo === emp.id);
-              const empActive = empTasks.filter(t => !['closed', 'completed'].includes(t.status));
-              const empCompleted = empTasks.filter(t => ['completed', 'closed'].includes(t.status)).length;
-              const empOverdue = empActive.filter(t => t.status === 'overdue' || (new Date(t.deadline) < now && !['completed', 'closed'].includes(t.status))).length;
-              const empPending = empActive.filter(t => t.status === 'pending_director_review').length;
-              const empWaiting = empActive.filter(t => t.status === 'waiting_response').length;
-              const empEff = empTasks.length > 0 ? Math.round((empCompleted / empTasks.length) * 100) : 0;
-              const empColor = emp.color ?? '#BE185D';
-              return (
-                <div key={emp.id} style={{ background: '#fff', borderRadius: 10, padding: '13px 15px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        {/* ── Block 3: My Tasks ───────────────────────────────────── */}
+        <div style={{
+          background: BG_CARD, borderRadius: 14,
+          padding: '15px 14px', border: `1px solid ${BORDER}`, marginBottom: 12,
+        }}>
+          <SectionHead
+            title="Мои задачи"
+            count={activeCount}
+            action="Все"
+            onAction={onViewChange ? () => onViewChange('my-tasks') : undefined}
+          />
+          {myActiveTasks.length === 0
+            ? <DarkEmpty text="Нет активных задач" />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {myActiveTasks.map(t => (
+                  <TaskRow key={t.id} task={t} onClick={() => setSelectedTask(t)} />
+                ))}
+              </div>
+            )
+          }
+        </div>
+
+        {/* ── Block 4: Incoming / Requests ────────────────────────── */}
+        <div style={{
+          background: BG_CARD, borderRadius: 14,
+          padding: '15px 14px', border: `1px solid ${BORDER}`, marginBottom: 12,
+        }}>
+          <SectionHead
+            title={isDirector ? 'Входящие и проверки' : 'Входящие запросы'}
+            count={incomingTasks.length + pendingReviewList.length}
+            action="Все"
+            onAction={onViewChange ? () => onViewChange(isDirector ? 'director-review' : 'incoming') : undefined}
+          />
+          {incomingTasks.length === 0 && pendingReviewList.length === 0
+            ? <DarkEmpty text="Нет входящих запросов" />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {incomingTasks.map(t => {
+                  const fromUser = users.find(u => u.id === (t.transferredFrom ?? t.createdBy));
+                  return (
+                    <IncomingRow
+                      key={t.id}
+                      task={t}
+                      fromName={fromUser?.name ?? 'Система'}
+                      onClick={() => setSelectedTask(t)}
+                    />
+                  );
+                })}
+                {pendingReviewList.map(t => {
+                  const fromUser = users.find(u => u.id === t.assignedTo);
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTask(t)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 13px',
+                        background: BG_ELEVATED, borderRadius: 10,
+                        border: `1px solid rgba(200,180,96,0.2)`,
+                        cursor: 'pointer', transition: 'border-color 0.15s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = GOLD_BORDER; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(200,180,96,0.2)'; }}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%',
+                        background: 'rgba(200,180,96,0.15)', border: '1px solid rgba(200,180,96,0.3)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, color: '#C8B460', flexShrink: 0,
+                      }}>◎</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 500, color: TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {t.title}
+                        </div>
+                        <div style={{ fontSize: 10, color: TEXT2, marginTop: 2 }}>
+                          Ожидает проверки · {fromUser?.name ?? '—'}
+                        </div>
+                      </div>
+                      <div style={{ color: TEXT3, fontSize: 15, flexShrink: 0 }}>›</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          }
+        </div>
+
+        {/* ── Block 5: Quick Notes ─────────────────────────────────── */}
+        <div style={{
+          background: BG_CARD, borderRadius: 14,
+          padding: '15px 14px', border: `1px solid ${BORDER}`, marginBottom: 12,
+        }}>
+          <SectionHead title="Заметки" count={notes.length} />
+          <div style={{ display: 'flex', gap: 8, marginBottom: notes.length > 0 ? 10 : 0 }}>
+            <input
+              value={noteInput}
+              onChange={e => setNoteInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addNote(); }}
+              placeholder="Быстрая заметка..."
+              style={{
+                flex: 1, padding: '9px 12px',
+                background: BG_INPUT,
+                border: `1px solid ${BORDER}`,
+                borderRadius: 9, color: TEXT, fontSize: 13,
+                outline: 'none', fontFamily: 'var(--font)',
+                transition: 'border-color 0.15s',
+              }}
+              onFocus={e => { e.target.style.borderColor = GOLD_BORDER; }}
+              onBlur={e => { e.target.style.borderColor = BORDER; }}
+            />
+            <button
+              onClick={addNote}
+              style={{
+                width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                background: noteInput.trim() ? GOLD : BG_ELEVATED,
+                border: `1px solid ${noteInput.trim() ? GOLD : BORDER}`,
+                cursor: 'pointer', color: noteInput.trim() ? '#0A0A0A' : TEXT3,
+                fontSize: 18, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              +
+            </button>
+          </div>
+          {notes.length === 0
+            ? <DarkEmpty text="Заметок нет — напишите что-нибудь" />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {notes.slice(0, 5).map(n => (
+                  <div key={n.id} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    padding: '9px 11px',
+                    background: BG_ELEVATED, borderRadius: 9,
+                    border: `1px solid ${BORDER}`,
+                  }}>
                     <div style={{
-                      width: 30, height: 30, borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${empColor}, ${empColor}AA)`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0,
-                    }}>
-                      {emp.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                      width: 2, minHeight: 20, borderRadius: 1,
+                      background: `${GOLD}50`, flexShrink: 0, alignSelf: 'stretch',
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, color: TEXT, lineHeight: 1.55 }}>{n.text}</div>
+                      <div style={{ fontSize: 10, color: TEXT3, marginTop: 3 }}>
+                        {new Date(n.createdAt).toLocaleDateString('ru-RU', {
+                          timeZone: TZ, day: 'numeric', month: 'short',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-0.1px' }}>{emp.name}</div>
-                      <div style={{ fontSize: 10, color: '#ADADAD' }}>{empActive.length} активных задач</div>
-                    </div>
+                    <button
+                      onClick={() => deleteNote(n.id)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: TEXT3, fontSize: 13, padding: '1px 3px',
+                        flexShrink: 0, lineHeight: 1, fontFamily: 'var(--font)',
+                        transition: 'color 0.12s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#B85858'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = TEXT3; }}
+                      title="Удалить"
+                    >✕</button>
                   </div>
-                  {/* Load bar */}
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ fontSize: 10, color: '#ADADAD' }}>Загрузка</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: empEff >= 70 ? '#059669' : empEff >= 40 ? '#D97706' : '#6B7280' }}>{empEff}%</span>
-                    </div>
-                    <div style={{ height: 4, background: '#F1F0EE', borderRadius: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 4, width: `${empEff}%`, background: empEff >= 70 ? '#10B981' : empEff >= 40 ? '#F59E0B' : '#6B7280', transition: 'width 0.4s' }} />
-                    </div>
-                  </div>
-                  {/* Badges */}
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                    {empOverdue > 0 && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: '#FEF2F2', color: '#EF4444' }}>⚠️ {empOverdue} просроч.</span>}
-                    {empPending > 0 && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: '#FFFBEB', color: '#B45309' }}>🔍 {empPending} проверка</span>}
-                    {empWaiting > 0 && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: '#FFF7ED', color: '#C2410C' }}>⏳ {empWaiting} ждёт</span>}
-                    {empOverdue === 0 && empPending === 0 && empWaiting === 0 && (
-                      <span style={{ fontSize: 10, color: '#ADADAD' }}>Всё ок ✓</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            )
+          }
         </div>
-      )}
+
+        {/* ── Block 6: Upcoming Deadlines + Week Progress ──────────── */}
+        <div style={{
+          background: BG_CARD, borderRadius: 14,
+          padding: '15px 14px', border: `1px solid ${BORDER}`, marginBottom: 12,
+        }}>
+          {/* Week progress bar */}
+          <SectionHead title="Ближайшие дедлайны" count={upcomingTasks.length} />
+          {weekTotal > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: TEXT2 }}>Прогресс недели</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: weekPct >= 70 ? '#5FA87A' : weekPct >= 40 ? '#D4944A' : TEXT2 }}>
+                  {weekPct}%
+                </div>
+              </div>
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
+                <div style={{
+                  height: '100%', borderRadius: 3,
+                  width: `${weekPct}%`,
+                  background: weekPct >= 70
+                    ? 'linear-gradient(90deg, #4A8A60, #5FA87A)'
+                    : weekPct >= 40
+                    ? `linear-gradient(90deg, #B07830, ${GOLD})`
+                    : `linear-gradient(90deg, ${GOLD}80, ${GOLD})`,
+                  transition: 'width 0.5s ease',
+                }} />
+              </div>
+              <div style={{ fontSize: 10, color: TEXT3 }}>
+                {weekDone} из {weekTotal} задач выполнено
+              </div>
+            </div>
+          )}
+
+          {upcomingTasks.length === 0
+            ? <DarkEmpty text="Нет задач в ближайшие 7 дней" />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {upcomingTasks.map(t => {
+                  const msLeft = new Date(t.deadline).getTime() - now.getTime();
+                  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+                  const st = STATUS_MAP[t.status] ?? { label: t.status, color: TEXT2 };
+                  const pcolor = PRIORITY_COLOR[t.priority] ?? TEXT3;
+                  const urgent = daysLeft <= 1;
+                  const soon = daysLeft <= 3;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTask(t)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 11,
+                        padding: '10px 13px',
+                        background: BG_ELEVATED, borderRadius: 10,
+                        border: `1px solid ${urgent ? 'rgba(184,88,88,0.3)' : BORDER}`,
+                        cursor: 'pointer', transition: 'border-color 0.15s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = GOLD_BORDER; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = urgent ? 'rgba(184,88,88,0.3)' : BORDER; }}
+                    >
+                      <div style={{ width: 3, minHeight: 28, borderRadius: 2, background: pcolor, flexShrink: 0, alignSelf: 'stretch' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 12.5, fontWeight: 500, color: TEXT,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {t.title}
+                        </div>
+                        <div style={{ fontSize: 10, color: st.color, marginTop: 2 }}>{st.label}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{
+                          fontSize: 11, fontWeight: 600,
+                          color: urgent ? '#B85858' : soon ? '#D4944A' : TEXT2,
+                        }}>
+                          {fmtShort(t.deadline)}
+                        </div>
+                        <div style={{ fontSize: 10, color: urgent ? '#B85858' : TEXT3 }}>
+                          {formatDaysLeft(daysLeft)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          }
+        </div>
+
+        {/* ── Director: Team Overview ──────────────────────────────── */}
+        {isDirector && employees.length > 0 && (
+          <div style={{
+            background: BG_CARD, borderRadius: 14,
+            padding: '15px 14px', border: `1px solid ${BORDER}`, marginBottom: 12,
+          }}>
+            <SectionHead title="Команда" count={employees.length} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {employees.map(emp => {
+                const empTasks = tasks.filter(t => t.assignedTo === emp.id);
+                const empActive = empTasks.filter(t => !['closed', 'completed'].includes(t.status));
+                const empCompleted = empTasks.filter(t => ['completed', 'closed'].includes(t.status)).length;
+                const empOverdue = empActive.filter(t =>
+                  t.status === 'overdue' || (new Date(t.deadline) < now && !['completed', 'closed'].includes(t.status))
+                ).length;
+                const empPending = empActive.filter(t => t.status === 'pending_director_review').length;
+                const empEff = empTasks.length > 0 ? Math.round((empCompleted / empTasks.length) * 100) : 0;
+                const empColor = emp.color ?? GOLD;
+                const empInitials = emp.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+                return (
+                  <div key={emp.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '11px 13px',
+                    background: BG_ELEVATED, borderRadius: 10, border: `1px solid ${BORDER}`,
+                  }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                      background: `linear-gradient(135deg, ${empColor}70, ${empColor}30)`,
+                      border: `1px solid ${empColor}40`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700, color: empColor,
+                    }}>
+                      {empInitials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: TEXT, letterSpacing: '-0.1px' }}>{emp.name}</div>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: empEff >= 70 ? '#5FA87A' : empEff >= 40 ? '#D4944A' : TEXT2 }}>
+                          {empEff}%
+                        </div>
+                      </div>
+                      <div style={{ height: 3, background: BORDER, borderRadius: 2, overflow: 'hidden', marginBottom: 5 }}>
+                        <div style={{
+                          height: '100%', borderRadius: 2,
+                          width: `${empEff}%`,
+                          background: empEff >= 70 ? '#5FA87A' : empEff >= 40 ? '#D4944A' : TEXT3,
+                          transition: 'width 0.4s',
+                        }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, color: TEXT3 }}>{empActive.length} активных</span>
+                        {empOverdue > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#B85858', background: 'rgba(184,88,88,0.12)', padding: '0 5px', borderRadius: 4 }}>
+                            ⚠ {empOverdue} просроч.
+                          </span>
+                        )}
+                        {empPending > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#C8B460', background: 'rgba(200,180,96,0.12)', padding: '0 5px', borderRadius: 4 }}>
+                            ◎ {empPending} проверка
+                          </span>
+                        )}
+                        {empOverdue === 0 && empPending === 0 && (
+                          <span style={{ fontSize: 10, color: '#5FA87A' }}>✓ Всё ок</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>{/* end main content */}
 
       {selectedTask && (
         <TaskModal
