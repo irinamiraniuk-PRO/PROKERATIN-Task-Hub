@@ -55,12 +55,12 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
   const menuGroups: MenuGroup[] = [
     {
       title: 'Главное',
-          items: [
-            { id: 'dashboard', label: 'Главная', icon: '⌂' },
-            { id: 'calendar-planner', label: 'Дашборд', icon: '▦' },
-            { id: 'notes', label: 'Заметки', icon: '📝' },
-          ],
-        },
+      items: [
+        { id: 'dashboard', label: 'Главная', icon: '⌂' },
+        { id: 'calendar-planner', label: 'Дашборд', icon: '▦' },
+        { id: 'notes', label: 'Заметки', icon: '📝' },
+      ],
+    },
     {
       title: 'Планирование',
       items: [
@@ -291,7 +291,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
           }}
         >
           <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1 }}>☰</span>
-          <span style={{ fontSize: 9, fontWeight: showMenu ? 600 : 400, letterSpacing: '0.1px' }}>Профиль</span>
+          <span style={{ fontSize: 9, fontWeight: showMenu ? 600 : 400, letterSpacing: '0.1px' }}>Ещё</span>
           {(incomingCount + waitingCount + (isDirector ? reviewCount : pendingMineCount)) > 0 && (
             <span style={{
               position: 'absolute', top: 2, right: '50%', transform: 'translateX(14px)',

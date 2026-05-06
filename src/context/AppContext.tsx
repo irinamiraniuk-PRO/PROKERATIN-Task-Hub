@@ -361,8 +361,8 @@ function readPersistedState(): Partial<AppState> | null {
 
 function normalizeUsers(users?: User[]): User[] {
   if (!Array.isArray(users) || users.length === 0) return USERS;
-  return users.map((u, i) => ({
-    ...USERS[Math.min(i, USERS.length - 1)],
+  return users.map(u => ({
+    ...(USERS.find(seed => seed.id === u.id) ?? {}),
     ...u,
   }));
 }
@@ -373,8 +373,8 @@ function normalizeTasks(tasks?: Task[]): Task[] {
     ...task,
     comments: Array.isArray(task.comments) ? task.comments : [],
     history: Array.isArray(task.history) ? task.history : [],
-    checklist: Array.isArray(task.checklist) ? task.checklist : task.checklist,
-    attachments: Array.isArray(task.attachments) ? task.attachments : task.attachments,
+    checklist: Array.isArray(task.checklist) ? task.checklist : [],
+    attachments: Array.isArray(task.attachments) ? task.attachments : [],
   }));
 }
 
@@ -403,6 +403,7 @@ function loadState(): AppState {
     const parsed = readPersistedState();
     if (parsed) {
       return {
+        ...initialState,
         ...parsed,
         currentUser: null,
         users: normalizeUsers(parsed.users),

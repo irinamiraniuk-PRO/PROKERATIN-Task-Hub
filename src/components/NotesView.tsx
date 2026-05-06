@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 
+const UNTITLED = 'Без названия';
+
 export default function NotesView() {
   const { state, addNote, updateNote, deleteNote } = useApp();
   const { currentUser, notes } = state;
@@ -26,11 +28,11 @@ export default function NotesView() {
     const cleanContent = content.trim();
     if (!cleanTitle && !cleanContent) return;
     if (editingId) {
-      updateNote(editingId, { title: cleanTitle || 'Без названия', content: cleanContent });
+      updateNote(editingId, { title: cleanTitle || UNTITLED, content: cleanContent });
       resetForm();
       return;
     }
-    addNote(cleanTitle || 'Без названия', cleanContent);
+    addNote(cleanTitle || UNTITLED, cleanContent);
     resetForm();
   }
 
@@ -77,7 +79,7 @@ export default function NotesView() {
         {myNotes.map(note => (
           <article key={note.id} style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 12, padding: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, wordBreak: 'break-word' }}>{note.title || 'Без названия'}</h2>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, wordBreak: 'break-word' }}>{note.title || UNTITLED}</h2>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => startEdit(note.id)} style={{ minHeight: 36, padding: '0 10px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff' }}>Изм.</button>
                 <button onClick={() => deleteNote(note.id)} style={{ minHeight: 36, padding: '0 10px', borderRadius: 8, border: '1px solid #FECACA', background: '#FEF2F2', color: '#B91C1C' }}>Удалить</button>
