@@ -41,8 +41,8 @@ export default function Layout() {
 
   function renderView() {
     switch (view) {
-      case 'dashboard': return <Dashboard searchQuery={searchQuery} />;
-      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => setView(v as View)} />;
+      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => setView(v as View)} />;
       case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
       case 'kanban': return (
         <div style={{ padding: '20px 24px' }}>
@@ -55,18 +55,20 @@ export default function Layout() {
       case 'outgoing': return <OutgoingTasks searchQuery={searchQuery} />;
       case 'waiting': return <WaitingTasks searchQuery={searchQuery} />;
       case 'pending-director': return <PendingDirectorReview searchQuery={searchQuery} />;
-      case 'director-review': return isDirector ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
-      case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'director-review': return isDirector ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => setView(v as View)} />;
+      case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => setView(v as View)} />;
       case 'archive': return <Archive searchQuery={searchQuery} />;
       case 'settings': return <SettingsView />;
       case 'knowledge-base': return <KnowledgeBase />;
       case 'onboarding': return <OnboardingView />;
-      default: return <Dashboard searchQuery={searchQuery} />;
+      default: return <Dashboard searchQuery={searchQuery} onViewChange={v => setView(v as View)} />;
     }
   }
 
+  const isDashboard = view === 'dashboard';
+
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#F7F7F5', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', background: isDashboard ? '#0A0A0A' : '#F7F7F5', overflow: 'hidden' }}>
       <div className="sidebar-wrapper">
         <Sidebar
           currentView={view}
@@ -75,7 +77,7 @@ export default function Layout() {
         />
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} isDashboard={isDashboard} />
         <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: view === 'kanban' ? 'hidden' : undefined }}>
           {renderView()}
         </main>

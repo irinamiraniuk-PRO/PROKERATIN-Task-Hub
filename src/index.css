@@ -158,15 +158,15 @@ button, input, select, textarea {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid var(--border);
+    background: rgba(10, 9, 7, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(201, 168, 76, 0.18);
     z-index: var(--z-bottomnav);
-    padding: 6px 4px env(safe-area-inset-bottom, 6px);
+    padding: 6px 8px env(safe-area-inset-bottom, 8px);
     justify-content: space-around;
     align-items: center;
-    box-shadow: 0 -2px 16px rgba(0,0,0,0.07);
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
   }
 }
 
