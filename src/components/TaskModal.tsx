@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task, TaskTag, User } from '../types';
 import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from './TaskCard';
@@ -94,8 +94,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const [assigneePickerItemId, setAssigneePickerItemId] = useState<string | null>(null);
   // AI Assistant
   const [showAI, setShowAI] = useState(false);
-
-  if (!currentUser) return null;
+  const modalHistoryKey = useId();
 
   const sc = statusColor(task.status);
   const pc = priorityColor(task.priority);
@@ -103,26 +102,51 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
   const creator = users.find(u => u.id === task.createdBy);
   const transferredToUser = task.transferredTo ? users.find(u => u.id === task.transferredTo) : null;
 
-  const isDirector = currentUser.role === 'director';
-  const isAssignee = task.assignedTo === currentUser.id;
-  const isTransferredToMe = task.transferredTo === currentUser.id && task.status === 'transferred';
+  const isDirector = currentUser?.role === 'director';
+  const isAssignee = currentUser ? task.assignedTo === currentUser.id : false;
+  const isTransferredToMe = currentUser ? task.transferredTo === currentUser.id && task.status === 'transferred' : false;
   const returnNoteValid = returnNote.trim().length > 0;
   const canAct = isAssignee || isDirector || isTransferredToMe;
 
-  const otherUsers = users.filter(u => u.id !== currentUser.id);
+  const otherUsers = currentUser ? users.filter(u => u.id !== currentUser.id) : [];
+
+  function handleClose() {
+    if (window.history.state?.taskModal === modalHistoryKey) {
+      window.history.back();
+      return;
+    }
+    onClose();
+  }
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (window.history.state?.taskModal !== modalHistoryKey) {
+      const baseState = window.history.state ?? {};
+      window.history.pushState({ ...baseState, taskModal: modalHistoryKey }, '');
+    }
+
+    function handlePopState() {
+      onClose();
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentUser, modalHistoryKey, onClose]);
+
+  if (!currentUser) return null;
 
   function handleTransfer() {
     if (!selectedUser) return;
     transferTask(task.id, selectedUser);
     setShowTransfer(false);
-    onClose();
+    handleClose();
   }
 
   function handleDirectorReturn() {
     if (!returnNoteValid) return;
     directorAction(task.id, 'return', returnNote);
     setShowReturn(false);
-    onClose();
+    handleClose();
   }
 
   function handlePlannedDate() {
@@ -197,13 +221,13 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
     {
       label: '✅ Принять',
       show: canAct && task.status === 'new',
-      onClick: () => { updateStatus(task.id, 'accepted'); onClose(); },
+      onClick: () => { updateStatus(task.id, 'accepted'); handleClose(); },
       color: '#10B981',
     },
     {
       label: '▶️ Взять в работу',
       show: canAct && (task.status === 'accepted' || task.status === 'returned_for_revision'),
-      onClick: () => { updateStatus(task.id, 'in_progress'); onClose(); },
+      onClick: () => { updateStatus(task.id, 'in_progress'); handleClose(); },
       color: '#4A90D9',
     },
     {
@@ -215,31 +239,31 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
     {
       label: '⏳ Жду ответа',
       show: (isAssignee || isTransferredToMe) && ['in_progress', 'accepted'].includes(task.status),
-      onClick: () => { updateStatus(task.id, 'waiting_response'); onClose(); },
+      onClick: () => { updateStatus(task.id, 'waiting_response'); handleClose(); },
       color: '#F97316',
     },
     {
       label: '🔍 На проверку директору',
       show: (isAssignee || isTransferredToMe) && ['in_progress', 'accepted', 'returned_for_revision'].includes(task.status) && !isDirector,
-      onClick: () => { sendToDirectorReview(task.id); onClose(); },
+      onClick: () => { sendToDirectorReview(task.id); handleClose(); },
       color: '#D97706',
     },
     {
       label: '🏁 Выполнено',
       show: canAct && ['in_progress', 'accepted', 'returned_for_revision'].includes(task.status),
-      onClick: () => { updateStatus(task.id, 'completed'); onClose(); },
+      onClick: () => { updateStatus(task.id, 'completed'); handleClose(); },
       color: '#059669',
     },
     {
       label: '⏸️ Отложить',
       show: canAct && ['new', 'accepted', 'in_progress'].includes(task.status),
-      onClick: () => { updateStatus(task.id, 'postponed'); onClose(); },
+      onClick: () => { updateStatus(task.id, 'postponed'); handleClose(); },
       color: '#6B7280',
     },
     {
       label: '✔️ Одобрить и закрыть',
       show: isDirector && task.status === 'pending_director_review',
-      onClick: () => { directorAction(task.id, 'approve'); onClose(); },
+      onClick: () => { directorAction(task.id, 'approve'); handleClose(); },
       color: '#059669',
     },
     {
@@ -251,7 +275,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
     {
       label: '🔒 Закрыть задачу',
       show: isDirector && task.status === 'completed',
-      onClick: () => { updateStatus(task.id, 'closed'); onClose(); },
+      onClick: () => { updateStatus(task.id, 'closed'); handleClose(); },
       color: '#374151',
     },
     {
@@ -283,7 +307,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
     <div className="modal-overlay-mobile" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    }} onClick={e => { if (e.target === e.currentTarget) handleClose(); }}>
       <div className="modal-fullscreen-mobile" style={{
         background: '#fff', borderRadius: 16, width: '100%', maxWidth: 760,
         maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
@@ -335,7 +359,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
               >
                 🤖 Помочь с задачей
               </button>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', flexShrink: 0 }}>✕</button>
+              <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', flexShrink: 0 }}>✕</button>
             </div>
           </div>
         </div>
