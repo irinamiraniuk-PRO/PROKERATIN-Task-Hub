@@ -97,8 +97,8 @@ export default function Layout() {
 
   function renderView() {
     switch (view) {
-      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} />;
-      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} />;
+      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v as View)} />;
+      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v as View)} />;
       case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
       case 'kanban': return (
         <div style={{ padding: '20px 24px' }}>
