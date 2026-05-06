@@ -3,6 +3,7 @@ import type { View } from './Sidebar';
 
 const GOLD = '#C9A84C';
 const GOLD_BG = 'rgba(201,168,76,0.12)';
+const CREATE_BUTTON_SHADOW = '0 4px 18px rgba(201,168,76,0.4), 0 0 0 1px rgba(201,168,76,0.2)';
 
 interface BottomNavProps {
   currentView: View;
@@ -43,12 +44,12 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
                 color: '#0A0A0A', border: 'none', cursor: 'pointer',
                 fontSize: 22, fontWeight: 700, lineHeight: 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: `0 4px 18px rgba(201,168,76,0.4), 0 0 0 1px rgba(201,168,76,0.2)`,
+                boxShadow: CREATE_BUTTON_SHADOW,
                 transition: 'transform 0.15s, box-shadow 0.15s',
                 flexShrink: 0,
               }}
               onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.92)'; e.currentTarget.style.boxShadow = `0 2px 10px rgba(201,168,76,0.3)`; }}
-              onTouchEnd={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = `0 4px 18px rgba(201,168,76,0.4), 0 0 0 1px rgba(201,168,76,0.2)`; }}
+              onTouchEnd={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = CREATE_BUTTON_SHADOW; }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
             >

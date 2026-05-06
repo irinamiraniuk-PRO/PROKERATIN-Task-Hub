@@ -42,6 +42,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 // ── Quick Notes (localStorage) ────────────────────────────────────────
+const MAX_NOTES = 20;
 type Note = { id: string; text: string; createdAt: string };
 const NOTES_KEY = 'prokeratin_quick_notes_v1';
 
@@ -73,13 +74,18 @@ function isInCurrentWeek(iso: string, monday: Date): boolean {
   return dLocal >= monday && dLocal <= sunday;
 }
 function greeting(firstName: string): string {
-  const h = parseInt(new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false }));
-  if (h < 12) return `Доброе утро, ${firstName}`;
-  if (h < 18) return `Добрый день, ${firstName}`;
+  const currentHour = parseInt(new Date().toLocaleString('en-US', { timeZone: TZ, hour: 'numeric', hour12: false }));
+  if (currentHour < 12) return `Доброе утро, ${firstName}`;
+  if (currentHour < 18) return `Добрый день, ${firstName}`;
   return `Добрый вечер, ${firstName}`;
 }
 function fmtShort(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { timeZone: TZ, day: 'numeric', month: 'short' });
+}
+function formatDaysLeft(daysLeft: number): string {
+  if (daysLeft === 0) return 'Сегодня';
+  if (daysLeft === 1) return 'Завтра';
+  return `${daysLeft} дн.`;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────
@@ -354,7 +360,7 @@ export default function Dashboard({
   function addNote() {
     const text = noteInput.trim();
     if (!text) return;
-    const updated = [{ id: mkId(), text, createdAt: new Date().toISOString() }, ...notes].slice(0, 20);
+    const updated = [{ id: mkId(), text, createdAt: new Date().toISOString() }, ...notes].slice(0, MAX_NOTES);
     setNotes(updated);
     saveNotes(updated);
     setNoteInput('');
@@ -729,7 +735,7 @@ export default function Dashboard({
                           {fmtShort(t.deadline)}
                         </div>
                         <div style={{ fontSize: 10, color: urgent ? '#B85858' : TEXT3 }}>
-                          {daysLeft === 0 ? 'Сегодня' : daysLeft === 1 ? 'Завтра' : `${daysLeft} дн.`}
+                          {formatDaysLeft(daysLeft)}
                         </div>
                       </div>
                     </div>
