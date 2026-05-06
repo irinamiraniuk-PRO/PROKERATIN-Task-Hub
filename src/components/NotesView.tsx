@@ -8,12 +8,12 @@ export default function NotesView() {
   const [content, setContent] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  if (!currentUser) return null;
-
   const myNotes = useMemo(
-    () => notes.filter(note => note.userId === currentUser.id),
-    [notes, currentUser.id]
+    () => notes.filter(note => note.userId === currentUser?.id),
+    [notes, currentUser?.id]
   );
+
+  if (!currentUser) return null;
 
   function resetForm() {
     setTitle('');
