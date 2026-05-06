@@ -120,8 +120,10 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
 
   useEffect(() => {
     if (!currentUser) return;
-    const baseState = window.history.state ?? {};
-    window.history.pushState({ ...baseState, taskModal: modalHistoryKey }, '');
+    if (window.history.state?.taskModal !== modalHistoryKey) {
+      const baseState = window.history.state ?? {};
+      window.history.pushState({ ...baseState, taskModal: modalHistoryKey }, '');
+    }
 
     function handlePopState() {
       onClose();
@@ -309,7 +311,7 @@ export default function TaskModal({ task, onClose }: TaskModalProps) {
       <div className="modal-fullscreen-mobile" style={{
         background: '#fff', borderRadius: 16, width: '100%', maxWidth: 760,
         maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-        display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1,
+        display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
         <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid #F0F0F0', flexShrink: 0 }}>

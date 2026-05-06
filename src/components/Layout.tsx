@@ -45,24 +45,26 @@ function isView(value: unknown): value is View {
 
 export default function Layout() {
   const { state } = useApp();
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>(() => {
+    const appView = window.history.state?.appView;
+    return isView(appView) ? appView : 'dashboard';
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { currentUser, tasks } = state;
   const isDirector = currentUser?.role === 'director';
 
-  function changeView(nextView: View, pushHistory = true) {
+  function changeView(nextView: View) {
     if (nextView === view) return;
     setView(nextView);
     setSearchQuery('');
-    if (pushHistory) {
-      window.history.pushState({ appView: nextView, appEntry: true }, '');
-    }
+    window.history.pushState({ appView: nextView }, '');
   }
 
   useEffect(() => {
-    window.history.replaceState({ appView: 'dashboard', appEntry: true }, '');
+    const appView = window.history.state?.appView;
+    window.history.replaceState({ appView: isView(appView) ? appView : 'dashboard' }, '');
   }, []);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function Layout() {
       }
       setView('dashboard');
       setSearchQuery('');
-      window.history.pushState({ appView: 'dashboard', appEntry: true }, '');
+      window.history.replaceState({ appView: 'dashboard' }, '');
     }
 
     window.addEventListener('popstate', handlePopState);
