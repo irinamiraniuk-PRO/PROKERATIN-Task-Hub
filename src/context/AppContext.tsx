@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useReducer, useEffect, useRef, useState, type ReactNode } from 'react';
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
@@ -490,7 +490,8 @@ interface AppContextValue {
   syncStatus: SyncStatus;
 }
 
-const AppContext = createContext<AppContextValue | null>(null);
+// eslint-disable-next-line react-refresh/only-export-components
+export const AppContext = createContext<AppContextValue | null>(null);
 
 /* ── Sound / browser-notification helpers ─── */
 function playNotificationSound() {
@@ -994,10 +995,4 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {children}
     </AppContext.Provider>
   );
-}
-
-export function useApp(): AppContextValue {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
 }

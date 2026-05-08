@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Task, TaskStatus, TaskPriority, TaskTag } from '../types';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';

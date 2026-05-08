@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type React from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import { KB_SECTIONS, type KBArticle, type KBSection } from '../data/knowledgeBase';
 import type { UserKBArticle } from '../types';
 

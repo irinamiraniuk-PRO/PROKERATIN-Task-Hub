@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Task } from '../types';
 import TaskModal from './TaskModal';
-import { STATUS_LABELS, statusColor, priorityColor, formatDate, isOverdue } from './TaskCard';
+import { STATUS_LABELS, statusColor, priorityColor, formatDate, isOverdue } from '../utils/taskCardUtils';
 
 const MAX_UNPLANNED_DISPLAY = 8;
 

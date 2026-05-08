@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import BrandLogo from './BrandLogo';
 import type { SyncStatus } from '../utils/syncAdapter';
 

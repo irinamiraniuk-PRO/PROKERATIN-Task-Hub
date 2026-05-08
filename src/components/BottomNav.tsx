@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { View } from './Sidebar';
 import BrandLogo from './BrandLogo';
 
