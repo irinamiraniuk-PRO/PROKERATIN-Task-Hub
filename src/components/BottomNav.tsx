@@ -43,10 +43,12 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
     setShowMenu(false);
   }
 
-  /* Main bottom bar items (5 slots) */
-  const mainItems: { id: View; label: string; icon: string; badge?: number }[] = [
+  /* Main bottom bar items split around the centered create button */
+  const leftItems: { id: View; label: string; icon: string; badge?: number }[] = [
     { id: 'dashboard', label: 'Главная', icon: '⌂' },
     { id: 'my-tasks', label: 'Задачи', icon: '◉', badge: returnedCount > 0 ? returnedCount : undefined },
+  ];
+  const rightItems: { id: View; label: string; icon: string; badge?: number }[] = [
     { id: 'incoming', label: 'Входящие', icon: '↓', badge: incomingCount },
     { id: 'notes', label: 'Заметки', icon: '📝' },
   ];
@@ -226,7 +228,32 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
 
       {/* Bottom nav bar */}
       <nav className="bottom-nav">
-        {mainItems.map(item => {
+        {/* Left two items + right two items rendered via shared helper */}
+        {[...leftItems, null, ...rightItems].map((item, idx) => {
+          if (item === null) {
+            /* Create button — centered */
+            return (
+              <button
+                key="create"
+                onClick={onCreateTask}
+                style={{
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: userColor,
+                  color: '#fff', border: 'none', cursor: 'pointer',
+                  fontSize: 24, fontWeight: 600, lineHeight: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: `0 4px 14px ${userColor}50`,
+                  transition: 'transform 0.15s',
+                  flexShrink: 0,
+                  marginBottom: 4,
+                }}
+                onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.93)'; }}
+                onTouchEnd={e => { e.currentTarget.style.transform = ''; }}
+              >
+                +
+              </button>
+            );
+          }
           const active = currentView === item.id;
           return (
             <button
@@ -264,25 +291,6 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
             </button>
           );
         })}
-
-        {/* Create button */}
-        <button
-          onClick={onCreateTask}
-          style={{
-            width: 44, height: 44, borderRadius: '50%',
-            background: userColor,
-            color: '#fff', border: 'none', cursor: 'pointer',
-            fontSize: 22, fontWeight: 600, lineHeight: 1,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 4px 14px ${userColor}50`,
-            transition: 'transform 0.15s',
-            flexShrink: 0,
-          }}
-          onTouchStart={e => { e.currentTarget.style.transform = 'scale(0.93)'; }}
-          onTouchEnd={e => { e.currentTarget.style.transform = ''; }}
-        >
-          +
-        </button>
 
         {/* Menu button */}
         <button
