@@ -4,14 +4,21 @@ import type {
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
   RecurrenceType, Project, Note, UserKBArticle, DashboardTodoItem,
 } from '../types';
-import { USERS, INITIAL_TASKS } from '../data/initialData';
-import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 import { createStateSyncAdapter, type SyncStatus } from '../utils/syncAdapter';
+import { ensureProfileForAuthUser, getSessionUser, signInWithLogin, signOutAuth, subscribeAuthState, updateAuthPassword } from '../utils/authService';
+import { uploadAttachmentDataUrl, uploadAvatarDataUrl } from '../utils/storageService';
 
 const SESSION_USER_KEY = 'prokeratin_session_user_v1';
 const STATE_EXPORT_VERSION = 1;
 const stateSyncAdapter = createStateSyncAdapter();
+
+const PROFILE_SEEDS_BY_LOGIN: Record<string, { name: string; role: User['role']; color?: string }> = {
+  irina: { name: 'Ирина Миранюк', role: 'director', color: '#BE185D' },
+  ulyana: { name: 'Ульяна', role: 'employee', color: '#0891B2' },
+  natali: { name: 'Натали', role: 'employee', color: '#EA580C' },
+  marina: { name: 'Марина', role: 'employee', color: '#16A34A' },
+};
 
 type PersistedStateData = Omit<Partial<AppState>, 'currentUser'>;
 interface PersistedStatePayload {
@@ -45,7 +52,7 @@ type Action =
   | { type: 'UPDATE_TASK_DEPS'; taskId: string; dependsOn: string[] }
   | { type: 'CREATE_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; projectId: string; patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>> }
-  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'password' | 'avatar'>> }
+  | { type: 'UPDATE_USER'; userId: string; patch: Partial<Pick<User, 'avatar'>> }
   | { type: 'CREATE_NOTE'; note: Note }
   | { type: 'UPDATE_NOTE'; noteId: string; patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>> }
   | { type: 'DELETE_NOTE'; noteId: string }
@@ -369,10 +376,10 @@ function reducer(state: AppState, action: Action): AppState {
 
 const initialState: AppState = {
   currentUser: null,
-  tasks: INITIAL_TASKS,
-  users: USERS,
+  tasks: [],
+  users: [],
   notifications: [],
-  projects: INITIAL_PROJECTS,
+  projects: [],
   notes: [],
   userKBArticles: [],
   dashboardTodos: {},
@@ -399,7 +406,7 @@ function setSessionUserId(userId: string | null) {
 }
 
 function toAppState(parsed: PersistedStateData, sessionUserId = getSessionUserId()): AppState {
-  const users = (parsed.users ?? USERS) as User[];
+  const users = (parsed.users ?? []) as User[];
   const savedUser = sessionUserId
     ? (users.find(u => u.id === sessionUserId) ?? null)
     : null;
@@ -408,7 +415,7 @@ function toAppState(parsed: PersistedStateData, sessionUserId = getSessionUserId
     ...parsed,
     currentUser: savedUser,
     notifications: parsed.notifications ?? [],
-    projects: parsed.projects ?? INITIAL_PROJECTS,
+    projects: parsed.projects ?? [],
     notes: parsed.notes ?? [],
     userKBArticles: parsed.userKBArticles ?? [],
     dashboardTodos: parsed.dashboardTodos ?? {},
@@ -462,8 +469,8 @@ function saveState(state: AppState) {
 
 interface AppContextValue {
   state: AppState;
-  login: (login: string, password: string) => boolean;
-  logout: () => void;
+  login: (login: string, password: string, profileHint?: Pick<User, 'name' | 'role' | 'color'>) => Promise<boolean>;
+  logout: () => Promise<void>;
   createTask: (data: {
     title: string; description: string; assignedTo: string;
     deadline: string; priority: TaskPriority; plannedDate?: string; tags?: TaskTag[];
@@ -483,15 +490,15 @@ interface AppContextValue {
   updateChecklistItemAssignee: (taskId: string, itemId: string, assignedTo: string | undefined) => void;
   updateTaskTags: (taskId: string, tags: TaskTag[]) => void;
   kanbanMove: (taskId: string, status: TaskStatus) => void;
-  addAttachment: (taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) => void;
+  addAttachment: (taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) => Promise<void>;
   markNotificationRead: (notificationId: string) => void;
   markAllRead: () => void;
   updateTaskProject: (taskId: string, projectId: string | undefined) => void;
   updateTaskDeps: (taskId: string, dependsOn: string[]) => void;
   createProject: (data: Omit<Project, 'id' | 'createdAt' | 'taskIds'>) => void;
   updateProject: (projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) => void;
-  updateUserPassword: (currentPassword: string, newPassword: string) => boolean;
-  updateUserAvatar: (avatar: string) => void;
+  updateUserPassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
+  updateUserAvatar: (avatar: string) => Promise<void>;
   createNote: (data: { title: string; content: string; emoji: string; color: string }) => void;
   updateNote: (noteId: string, patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>>) => void;
   deleteNote: (noteId: string) => void;
@@ -576,6 +583,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    void getSessionUser().then((user) => {
+      setSessionUserId(user?.id ?? null);
+    });
+    return subscribeAuthState((_event, session) => {
+      const userId = session?.user?.id ?? null;
+      setSessionUserId(userId);
+      if (!userId) {
+        dispatch({ type: 'LOGOUT' });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const sessionUserId = getSessionUserId();
+    if (!sessionUserId) return;
+    const matched = state.users.find(user => user.id === sessionUserId);
+    if (!matched) return;
+    if (state.currentUser?.id === matched.id) return;
+    dispatch({ type: 'LOGIN', user: matched });
+  }, [state.users, state.currentUser?.id]);
+
   // Request browser notification permission once on mount
   useEffect(() => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
@@ -609,17 +638,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     prevUnreadCountRef.current = myUnread.length;
   }, [state.notifications, state.currentUser]);
 
-  function login(loginVal: string, password: string): boolean {
-    const user = state.users.find(u => u.login === loginVal && u.password === password);
-    if (user) {
-      setSessionUserId(user.id);
-      dispatch({ type: 'LOGIN', user });
-      return true;
+  async function login(loginVal: string, password: string, profileHint?: Pick<User, 'name' | 'role' | 'color'>): Promise<boolean> {
+    const result = await signInWithLogin(loginVal, password);
+    if (!result.ok || !result.user) return false;
+
+    const seed = profileHint ?? PROFILE_SEEDS_BY_LOGIN[loginVal.trim().toLowerCase()] ?? {
+      name: loginVal,
+      role: 'employee' as User['role'],
+      color: '#BE185D',
+    };
+    await ensureProfileForAuthUser(result.user, {
+      login: loginVal,
+      name: seed.name,
+      role: seed.role,
+      color: seed.color,
+    });
+
+    const userId = result.user.id;
+    setSessionUserId(userId);
+    const stateUser = state.users.find(u => u.id === userId);
+    if (stateUser) {
+      dispatch({ type: 'LOGIN', user: stateUser });
+    } else {
+      dispatch({
+        type: 'LOGIN',
+        user: {
+          id: userId,
+          login: loginVal,
+          name: seed.name,
+          role: seed.role,
+          color: seed.color,
+        },
+      });
     }
-    return false;
+    return true;
   }
 
-  function logout() {
+  async function logout() {
+    await signOutAuth();
     setSessionUserId(null);
     dispatch({ type: 'LOGOUT' });
   }
@@ -631,6 +687,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     reactionDeadline?: string;
   }) {
     if (!state.currentUser) return;
+    if (state.currentUser.role === 'guest') return;
     const id = uid();
     const nowTs = new Date().toISOString();
     const checklist: ChecklistItem[] | undefined = data.checklist?.length
@@ -799,10 +856,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'KANBAN_MOVE', taskId, status, actorId: state.currentUser.id });
   }
 
-  function addAttachment(taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>) {
+  async function addAttachment(taskId: string, data: Omit<Attachment, 'id' | 'taskId' | 'uploadedBy' | 'uploadedAt'>): Promise<void> {
     if (!state.currentUser) return;
+    let resolvedUrl = data.url;
+    if (!data.isLink && data.url.startsWith('data:')) {
+      resolvedUrl = await uploadAttachmentDataUrl(
+        state.currentUser.id,
+        taskId,
+        data.name,
+        data.url,
+        data.mimeType,
+      ) ?? data.url;
+    }
     const attachment: Attachment = {
       ...data,
+      url: resolvedUrl,
       id: uid(),
       taskId,
       uploadedBy: state.currentUser.id,
@@ -829,24 +897,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function createProject(data: Omit<Project, 'id' | 'createdAt' | 'taskIds'>) {
+    if (state.currentUser?.role === 'guest') return;
     const project: Project = { ...data, id: uid(), createdAt: new Date().toISOString(), taskIds: [] };
     dispatch({ type: 'CREATE_PROJECT', project });
   }
 
   function updateProject(projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) {
+    if (state.currentUser?.role === 'guest') return;
     dispatch({ type: 'UPDATE_PROJECT', projectId, patch });
   }
 
-  function updateUserPassword(currentPassword: string, newPassword: string): boolean {
+  async function updateUserPassword(currentPassword: string, newPassword: string): Promise<boolean> {
     if (!state.currentUser) return false;
-    if (state.currentUser.password !== currentPassword) return false;
-    dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { password: newPassword } });
-    return true;
+    return await updateAuthPassword(state.currentUser.login, currentPassword, newPassword);
   }
 
-  function updateUserAvatar(avatar: string) {
+  async function updateUserAvatar(avatar: string): Promise<void> {
     if (!state.currentUser) return;
-    dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { avatar } });
+    if (!avatar) {
+      dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { avatar: undefined } });
+      return;
+    }
+    let avatarUrl = avatar;
+    if (avatar.startsWith('data:')) {
+      avatarUrl = await uploadAvatarDataUrl(state.currentUser.id, avatar) ?? avatar;
+    }
+    dispatch({ type: 'UPDATE_USER', userId: state.currentUser.id, patch: { avatar: avatarUrl } });
   }
 
   function createNote(data: { title: string; content: string; emoji: string; color: string }) {
@@ -894,6 +970,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function exportState(): string {
+    if (state.currentUser?.role !== 'director') return '';
     return serializeState(state);
   }
 

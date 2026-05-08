@@ -20,6 +20,16 @@ export interface PersistedStateData {
   dashboardTodos?: Record<string, DashboardTodoItem[]>;
 }
 
+interface ProfileRow {
+  id: string;
+  name: string;
+  login: string;
+  role: User['role'];
+  avatar: string | null;
+  color: string | null;
+  deleted_at: string | null;
+}
+
 interface TaskRow {
   id: string;
   title: string;
@@ -43,6 +53,7 @@ interface TaskRow {
   reaction_deadline: string | null;
   project_id: string | null;
   depends_on: unknown;
+  deleted_at: string | null;
 }
 
 interface CommentRow {
@@ -52,6 +63,7 @@ interface CommentRow {
   text: string;
   created_at: string;
   mentions: unknown;
+  deleted_at: string | null;
 }
 
 interface TaskHistoryRow {
@@ -63,6 +75,7 @@ interface TaskHistoryRow {
   to_status: HistoryEntry['toStatus'] | null;
   created_at: string;
   meta: string | null;
+  deleted_at: string | null;
 }
 
 interface NoteRow {
@@ -75,11 +88,13 @@ interface NoteRow {
   pinned: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 interface UserSettingsRow {
   user_id: string;
   settings: unknown;
+  deleted_at: string | null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -128,9 +143,14 @@ export class SupabaseDataService {
     return this.client;
   }
 
-  private async fetchRows<T>(table: string, selectQuery: string, orderBy?: { column: string; ascending?: boolean }, limit?: number): Promise<T[]> {
+  private async fetchRows<T>(
+    table: string,
+    selectQuery: string,
+    orderBy?: { column: string; ascending?: boolean },
+    limit?: number,
+  ): Promise<T[]> {
     const client = this.assertClient();
-    let query = client.from(table).select(selectQuery);
+    let query = client.from(table).select(selectQuery).is('deleted_at', null);
     if (orderBy) {
       query = query.order(orderBy.column, { ascending: orderBy.ascending ?? true });
     }
@@ -142,54 +162,66 @@ export class SupabaseDataService {
     return (data ?? []) as T[];
   }
 
-  private async deleteAll(table: string, keyColumn: string): Promise<void> {
-    const client = this.assertClient();
-    const { error } = await client.from(table).delete().not(keyColumn, 'is', null);
-    if (error) throw new Error(`Failed to delete ${table}: ${error.message}`);
+  private async fetchRowsSafe<T>(
+    table: string,
+    selectQuery: string,
+    orderBy?: { column: string; ascending?: boolean },
+    limit?: number,
+  ): Promise<T[]> {
+    try {
+      return await this.fetchRows<T>(table, selectQuery, orderBy, limit);
+    } catch {
+      return [];
+    }
   }
 
-  private async deleteByIds(table: string, keyColumn: string, ids: string[]): Promise<void> {
+  private async archiveByIds(table: string, keyColumn: string, ids: string[]): Promise<void> {
     if (!ids.length) return;
     const client = this.assertClient();
-    const { error } = await client.from(table).delete().in(keyColumn, ids);
-    if (error) throw new Error(`Failed to delete obsolete rows from ${table}: ${error.message}`);
+    const { error } = await client
+      .from(table)
+      .update({ deleted_at: new Date().toISOString() })
+      .in(keyColumn, ids)
+      .is('deleted_at', null);
+    if (error) throw new Error(`Failed to archive obsolete rows in ${table}: ${error.message}`);
   }
 
   private async upsertRows(table: string, rows: Record<string, unknown>[], keyColumn: string): Promise<void> {
     if (!rows.length) return;
     const client = this.assertClient();
-    // Every synced table in schema.sql uses a single-column primary key.
-    // `keyColumn` must match that key, because we rely on merge upserts.
-    // If schema and keyColumn diverge, Supabase returns an error and sync is aborted.
-    const { error } = await client.from(table).upsert(rows, { onConflict: keyColumn, ignoreDuplicates: false });
+    const withActiveFlag = rows.map(row => ({ ...row, deleted_at: null }));
+    const { error } = await client.from(table).upsert(withActiveFlag, { onConflict: keyColumn, ignoreDuplicates: false });
     if (error) throw new Error(`Failed to upsert ${table}: ${error.message}`);
   }
 
   private async syncTable(table: string, keyColumn: string, rows: Record<string, unknown>[]): Promise<void> {
-    if (!rows.length) {
-      await this.deleteAll(table, keyColumn);
-      return;
-    }
-
     await this.upsertRows(table, rows, keyColumn);
     const existingRows = await this.fetchRows<Record<string, unknown>>(table, keyColumn);
     const nextIds = new Set(rows.map(row => String(row[keyColumn])));
     const obsoleteIds = existingRows
       .map(row => String(row[keyColumn] ?? ''))
       .filter(id => id && !nextIds.has(id));
-
-    await this.deleteByIds(table, keyColumn, obsoleteIds);
+    await this.archiveByIds(table, keyColumn, obsoleteIds);
   }
 
   async fetchStateData(): Promise<PersistedStateData | null> {
-    const [users, taskRows, commentRows, historyRows, noteRows, settingsRows] = await Promise.all([
-      this.fetchRows<User>('users', 'id,name,login,password,role,avatar,color', { column: 'id', ascending: true }),
-      this.fetchRows<TaskRow>('tasks', '*', { column: 'created_at', ascending: false }),
-      this.fetchRows<CommentRow>('comments', 'id,task_id,author_id,text,created_at,mentions', { column: 'created_at', ascending: true }),
-      this.fetchRows<TaskHistoryRow>('task_history', 'id,task_id,actor_id,action,from_status,to_status,created_at,meta', { column: 'created_at', ascending: true }),
-      this.fetchRows<NoteRow>('notes', 'id,user_id,title,content,emoji,color,pinned,created_at,updated_at', { column: 'updated_at', ascending: false }),
-      this.fetchRows<UserSettingsRow>('user_settings', 'user_id,settings', { column: 'updated_at', ascending: false }, 1),
+    const [profiles, taskRows, commentRows, historyRows, noteRows, settingsRows] = await Promise.all([
+      this.fetchRowsSafe<ProfileRow>('profiles', 'id,name,login,role,avatar,color,deleted_at', { column: 'name', ascending: true }),
+      this.fetchRowsSafe<TaskRow>('tasks', '*', { column: 'created_at', ascending: false }),
+      this.fetchRowsSafe<CommentRow>('comments', 'id,task_id,author_id,text,created_at,mentions,deleted_at', { column: 'created_at', ascending: true }),
+      this.fetchRowsSafe<TaskHistoryRow>('task_history', 'id,task_id,actor_id,action,from_status,to_status,created_at,meta,deleted_at', { column: 'created_at', ascending: true }),
+      this.fetchRowsSafe<NoteRow>('notes', 'id,user_id,title,content,emoji,color,pinned,created_at,updated_at,deleted_at', { column: 'updated_at', ascending: false }),
+      this.fetchRowsSafe<UserSettingsRow>('user_settings', 'user_id,settings,deleted_at', { column: 'updated_at', ascending: false }, 1),
     ]);
+
+    const users: User[] = profiles.map((row) => ({
+      id: row.id,
+      name: row.name,
+      login: row.login,
+      role: row.role,
+      avatar: row.avatar ?? undefined,
+      color: row.color ?? undefined,
+    }));
 
     const commentsByTaskId = new Map<string, Task['comments']>();
     commentRows.forEach((row) => {
@@ -292,11 +324,10 @@ export class SupabaseDataService {
     const userKBArticles = normalizeArray<UserKBArticle>(data.userKBArticles);
     const dashboardTodos = normalizeRecord<DashboardTodoItem[]>(data.dashboardTodos);
 
-    const userRows = users.map(user => ({
+    const profileRows = users.map(user => ({
       id: user.id,
       name: user.name,
       login: user.login,
-      password: user.password,
       role: user.role,
       avatar: user.avatar ?? null,
       color: user.color ?? null,
@@ -337,7 +368,7 @@ export class SupabaseDataService {
         text: comment.text,
         created_at: comment.createdAt,
         mentions: comment.mentions ?? [],
-      }))
+      })),
     );
 
     const historyRows = tasks.flatMap(task =>
@@ -350,7 +381,7 @@ export class SupabaseDataService {
         to_status: entry.toStatus ?? null,
         created_at: entry.createdAt,
         meta: entry.meta ?? null,
-      }))
+      })),
     );
 
     const noteRows = notes.map(note => ({
@@ -365,8 +396,6 @@ export class SupabaseDataService {
       updated_at: note.updatedAt,
     }));
 
-    // user_settings stores shared app-level settings, so we persist it under one stable user key:
-    // director first (most stable account), otherwise first available user.
     const settingsOwnerId = users.find(user => user.role === 'director')?.id ?? users[0]?.id;
     const userSettingsRows = settingsOwnerId
       ? [{
@@ -381,7 +410,7 @@ export class SupabaseDataService {
         }]
       : [];
 
-    await this.syncTable('users', 'id', userRows);
+    await this.syncTable('profiles', 'id', profileRows);
     await this.syncTable('tasks', 'id', taskRows);
     await this.syncTable('comments', 'id', commentRows);
     await this.syncTable('task_history', 'id', historyRows);

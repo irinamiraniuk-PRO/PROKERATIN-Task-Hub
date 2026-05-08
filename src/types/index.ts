@@ -1,4 +1,4 @@
-export type UserRole = 'director' | 'employee';
+export type UserRole = 'director' | 'employee' | 'guest';
 
 export type TaskStatus =
   | 'new'
@@ -48,7 +48,6 @@ export interface User {
   id: string;
   name: string;
   login: string;
-  password: string;
   role: UserRole;
   avatar?: string;
   color?: string;
