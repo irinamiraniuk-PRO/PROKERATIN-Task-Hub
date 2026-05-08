@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import BrandLogo from './BrandLogo';
+import type { SyncStatus } from '../utils/syncAdapter';
 
 export default function SettingsView() {
-  const { state, updateUserPassword, updateUserAvatar, exportState, importState } = useApp();
+  const { state, updateUserPassword, updateUserAvatar, exportState, importState, syncStatus } = useApp();
   const { currentUser } = state;
   if (!currentUser) return null;
 
@@ -87,7 +88,7 @@ export default function SettingsView() {
       </div>
 
       {/* Cross-device sync */}
-      <SyncSection color={color} exportState={exportState} importState={importState} />
+      <SyncSection color={color} exportState={exportState} importState={importState} syncStatus={syncStatus} />
     </div>
   );
 }
@@ -297,10 +298,11 @@ function PasswordSection({ color, onSave }: { color: string; onSave: (current: s
 }
 
 /* ── Cross-device sync section ───────────────────────── */
-function SyncSection({ color, exportState, importState }: {
+function SyncSection({ color, exportState, importState, syncStatus }: {
   color: string;
   exportState: () => string;
   importState: (json: string) => boolean;
+  syncStatus: SyncStatus;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const syncCodeRef = useRef<HTMLTextAreaElement>(null);
@@ -395,9 +397,19 @@ function SyncSection({ color, exportState, importState }: {
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>📲 Синхронизация между устройствами</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>📲 Источник данных учётной записи</div>
       <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>
-        Данные хранятся локально в браузере. Для синхронизации между компьютером и телефоном используйте экспорт/импорт или код синхронизации: переносятся задачи, заметки, пароли и аватарки.
+        Текущий режим: <b>{syncStatus.mode === 'backend' ? 'общий backend' : 'localStorage (только это устройство)'}</b>.
+        {' '}
+        В этом режиме данные не синхронизируются автоматически между телефоном и компьютером.
+      </div>
+      {!syncStatus.supportsCrossDeviceSync && (
+        <div style={{ marginBottom: 14, background: '#FEF3C7', color: '#92400E', borderRadius: 10, border: '1px solid #FDE68A', padding: '10px 12px', fontSize: 12.5, lineHeight: 1.5 }}>
+          ⚠️ {syncStatus.warning} До подключения backend используйте только ручной перенос данных (экспорт/импорт).
+        </div>
+      )}
+      <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>
+        Ниже доступны инструменты резервной копии и ручного переноса данных между устройствами.
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
@@ -419,7 +431,7 @@ function SyncSection({ color, exportState, importState }: {
         <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={handleImportFile} />
       </div>
       <div style={{ marginTop: 14, padding: '12px 12px 10px', borderRadius: 10, border: '1px solid #EEECEA', background: '#FAFAF8' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код синхронизации (без JSON-файла)</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код переноса (без JSON-файла)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
           <button
             onClick={handleCopySyncCode}
@@ -427,7 +439,7 @@ function SyncSection({ color, exportState, importState }: {
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
           >
-            📋 Скопировать код с этого устройства
+            📋 Скопировать код с текущего устройства
           </button>
           <button
             onClick={() => syncCodeRef.current?.focus()}
@@ -435,14 +447,14 @@ function SyncSection({ color, exportState, importState }: {
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
           >
-            ✏️ Вставить код на этом устройстве
+            ✏️ Вставить код на текущем устройстве
           </button>
         </div>
         <textarea
           ref={syncCodeRef}
           value={syncCode}
           onChange={e => setSyncCode(e.target.value)}
-          placeholder="Вставьте код синхронизации сюда"
+          placeholder="Вставьте код переноса сюда"
           style={{
             width: '100%',
             minHeight: 84,
@@ -468,13 +480,13 @@ function SyncSection({ color, exportState, importState }: {
               cursor: syncCode.trim() ? 'pointer' : 'not-allowed',
             }}
           >
-            ✅ Применить код синхронизации
+            ✅ Применить код переноса
           </button>
         </div>
       </div>
       {codeStatus === 'ok' && (
         <div style={{ marginTop: 12, background: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500 }}>
-          ✓ Код синхронизации скопирован в буфер обмена.
+          ✓ Код переноса скопирован в буфер обмена.
         </div>
       )}
       {codeStatus === 'error' && (
