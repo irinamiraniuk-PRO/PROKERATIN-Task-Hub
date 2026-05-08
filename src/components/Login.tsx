@@ -332,7 +332,7 @@ export default function Login() {
         if (!ok) {
           setPhase('password');
           setSubmitting(false);
-          setError('Неверный пароль. Попробуйте ещё раз.');
+          setError('Не удалось выполнить вход. Проверьте данные и попробуйте ещё раз.');
         }
       }, 450); // 450 ms after leave starts = 1550 ms total
     }, 1100);
