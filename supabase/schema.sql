@@ -72,3 +72,24 @@ create table if not exists public.user_settings (
   settings jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+-- Legacy demo/history data may contain system actor IDs that are not users.
+-- Keep actor_id as plain text to avoid breaking sync inserts.
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'task_history_actor_id_fkey'
+      and conrelid = 'public.task_history'::regclass
+  ) then
+    alter table public.task_history drop constraint task_history_actor_id_fkey;
+  end if;
+end $$;
+
+create index if not exists idx_tasks_assigned_to on public.tasks(assigned_to);
+create index if not exists idx_tasks_created_by on public.tasks(created_by);
+create index if not exists idx_tasks_updated_at on public.tasks(updated_at desc);
+create index if not exists idx_comments_task_id on public.comments(task_id);
+create index if not exists idx_task_history_task_id on public.task_history(task_id);
+create index if not exists idx_notes_user_id on public.notes(user_id);
