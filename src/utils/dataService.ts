@@ -82,6 +82,10 @@ interface UserSettingsRow {
   settings: unknown;
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 function readJson<T>(value: unknown, fallback: T): T {
   if (value == null) return fallback;
   if (typeof value === 'string') {
@@ -99,7 +103,7 @@ function normalizeArray<T>(value: unknown): T[] {
 }
 
 function normalizeRecord<T>(value: unknown): Record<string, T> {
-  return value && typeof value === 'object' ? value as Record<string, T> : {};
+  return isObject(value) ? value as Record<string, T> : {};
 }
 
 function isEmptyStateData(data: PersistedStateData): boolean {
@@ -154,6 +158,9 @@ export class SupabaseDataService {
   private async upsertRows(table: string, rows: Record<string, unknown>[], keyColumn: string): Promise<void> {
     if (!rows.length) return;
     const client = this.assertClient();
+    // Every synced table in schema.sql uses a single-column primary key.
+    // `keyColumn` must match that key, because we rely on merge upserts.
+    // If schema and keyColumn diverge, Supabase returns an error and sync is aborted.
     const { error } = await client.from(table).upsert(rows, { onConflict: keyColumn, ignoreDuplicates: false });
     if (error) throw new Error(`Failed to upsert ${table}: ${error.message}`);
   }
@@ -358,7 +365,9 @@ export class SupabaseDataService {
       updated_at: note.updatedAt,
     }));
 
-    const settingsOwnerId = userRows[0]?.id;
+    // user_settings stores shared app-level settings, so we persist it under one stable user key:
+    // director first (most stable account), otherwise first available user.
+    const settingsOwnerId = users.find(user => user.role === 'director')?.id ?? users[0]?.id;
     const userSettingsRows = settingsOwnerId
       ? [{
           user_id: settingsOwnerId,

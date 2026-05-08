@@ -20,11 +20,29 @@ export interface StateSyncAdapter {
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_POLL_INTERVAL_MS = 30000;
-const LEGACY_LOCAL_STORAGE_HINTS = ['prokeratin', 'task', 'hub', 'state', 'sync', 'backup'];
+const LEGACY_STORAGE_KEY_PATTERNS = ['prokeratin', 'task', 'hub', 'state', 'sync', 'backup'];
 const LEGACY_LOCAL_STORAGE_IGNORED = ['prokeratin_session_user_v1'];
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isDashboardTodoItem(value: unknown): value is DashboardTodoItem {
+  return isObject(value)
+    && typeof value.id === 'string'
+    && typeof value.text === 'string'
+    && typeof value.done === 'boolean';
+}
+
+function normalizeDashboardTodos(value: unknown): Record<string, DashboardTodoItem[]> {
+  if (!isObject(value)) return {};
+  const normalized: Record<string, DashboardTodoItem[]> = {};
+  Object.entries(value).forEach(([userId, items]) => {
+    if (!Array.isArray(items)) return;
+    // Intentionally permissive for migration: keep valid items, silently drop malformed fields/items.
+    normalized[userId] = items.filter(isDashboardTodoItem);
+  });
+  return normalized;
 }
 
 function parsePayloadData(payload: string): PersistedStateData | null {
@@ -70,7 +88,7 @@ function normalizeLegacyData(value: unknown): PersistedStateData | null {
     notifications: Array.isArray(raw.notifications) ? raw.notifications : [],
     projects: Array.isArray(raw.projects) ? raw.projects : [],
     userKBArticles: Array.isArray(raw.userKBArticles) ? raw.userKBArticles : [],
-    dashboardTodos: isObject(raw.dashboardTodos) ? raw.dashboardTodos as Record<string, DashboardTodoItem[]> : {},
+    dashboardTodos: normalizeDashboardTodos(raw.dashboardTodos),
   };
 }
 
@@ -82,7 +100,8 @@ function readLegacyLocalData(): PersistedStateData | null {
       if (!key) continue;
       if (LEGACY_LOCAL_STORAGE_IGNORED.includes(key)) continue;
       const normalizedKey = key.toLowerCase();
-      const isLikelyTaskHubKey = LEGACY_LOCAL_STORAGE_HINTS.some(hint => normalizedKey.includes(hint));
+      // Broad substring matching is intentional to recover legacy keys from older app versions.
+      const isLikelyTaskHubKey = LEGACY_STORAGE_KEY_PATTERNS.some(hint => normalizedKey.includes(hint));
       if (!isLikelyTaskHubKey) continue;
       const raw = localStorage.getItem(key);
       if (!raw) continue;
