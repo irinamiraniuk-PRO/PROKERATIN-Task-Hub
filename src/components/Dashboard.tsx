@@ -6,12 +6,37 @@ import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
 
 const TZ = 'Europe/Minsk';
-const DASHBOARD_TODOS_KEY_PREFIX = 'prokeratin_dashboard_todos_v1';
+const DASHBOARD_TODOS_LS_KEY = 'prokeratin_dashboard_todos_v1';
 
 interface TodoItem {
   id: string;
   text: string;
   done: boolean;
+}
+
+function loadDashboardTodos(): Record<string, TodoItem[]> {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_TODOS_LS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+
+    const normalized: Record<string, TodoItem[]> = {};
+    for (const [userId, items] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!Array.isArray(items)) continue;
+      normalized[userId] = items
+        .filter((item): item is TodoItem => (
+          typeof item?.id === 'string' &&
+          typeof item?.text === 'string' &&
+          typeof item?.done === 'boolean'
+        ))
+        .map(item => ({ ...item, text: item.text.trim() }))
+        .filter(item => item.text.length > 0);
+    }
+    return normalized;
+  } catch {
+    return {};
+  }
 }
 
 // Status colour/label map — defined once outside the component to avoid per-render recreation
@@ -183,46 +208,15 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
   const [quickNoteTitle, setQuickNoteTitle] = useState('');
   const [quickNoteContent, setQuickNoteContent] = useState('');
   const [todoInput, setTodoInput] = useState('');
-  const [todoItems, setTodoItems] = useState<TodoItem[]>([]);
-
-  const todoStorageKey = `${DASHBOARD_TODOS_KEY_PREFIX}_${currentUser?.id ?? 'guest'}`;
+  const [todoByUser, setTodoByUser] = useState<Record<string, TodoItem[]>>(loadDashboardTodos);
 
   useEffect(() => {
-    if (!currentUser) {
-      setTodoItems([]);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem(todoStorageKey);
-      if (!raw) {
-        setTodoItems([]);
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setTodoItems([]);
-        return;
-      }
-      const normalized: TodoItem[] = parsed
-        .filter((item): item is TodoItem => (
-          typeof item?.id === 'string' &&
-          typeof item?.text === 'string' &&
-          typeof item?.done === 'boolean'
-        ))
-        .map(item => ({ ...item, text: item.text.trim() }))
-        .filter(item => item.text.length > 0);
-      setTodoItems(normalized);
-    } catch {
-      setTodoItems([]);
-    }
-  }, [todoStorageKey, currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    localStorage.setItem(todoStorageKey, JSON.stringify(todoItems));
-  }, [todoItems, todoStorageKey, currentUser]);
+    localStorage.setItem(DASHBOARD_TODOS_LS_KEY, JSON.stringify(todoByUser));
+  }, [todoByUser]);
 
   if (!currentUser) return null;
+  const currentUserId = currentUser.id;
+  const todoItems = todoByUser[currentUserId] ?? [];
 
   const unreadNotifCount = notifications.filter(n => n.userId === currentUser.id && !n.read).length;
 
@@ -323,16 +317,25 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
   function handleAddTodo() {
     const text = todoInput.trim();
     if (!text) return;
-    setTodoItems(prev => [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text, done: false }, ...prev]);
+    setTodoByUser(prev => ({
+      ...prev,
+      [currentUserId]: [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text, done: false }, ...(prev[currentUserId] ?? [])],
+    }));
     setTodoInput('');
   }
 
   function handleUpdateTodo(id: string, text: string) {
-    setTodoItems(prev => prev.map(item => item.id === id ? { ...item, text } : item));
+    setTodoByUser(prev => ({
+      ...prev,
+      [currentUserId]: (prev[currentUserId] ?? []).map(item => item.id === id ? { ...item, text } : item),
+    }));
   }
 
   function handleDeleteTodo(id: string) {
-    setTodoItems(prev => prev.filter(item => item.id !== id));
+    setTodoByUser(prev => ({
+      ...prev,
+      [currentUserId]: (prev[currentUserId] ?? []).filter(item => item.id !== id),
+    }));
   }
 
   return (
@@ -655,7 +658,10 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
                   <input
                     type="checkbox"
                     checked={item.done}
-                    onChange={() => setTodoItems(prev => prev.map(todo => todo.id === item.id ? { ...todo, done: !todo.done } : todo))}
+                    onChange={() => setTodoByUser(prev => ({
+                      ...prev,
+                      [currentUserId]: (prev[currentUserId] ?? []).map(todo => todo.id === item.id ? { ...todo, done: !todo.done } : todo),
+                    }))}
                   />
                   <input
                     value={item.text}
