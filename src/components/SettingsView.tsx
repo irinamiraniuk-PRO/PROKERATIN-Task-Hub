@@ -308,12 +308,20 @@ function SyncSection({ color, exportState, importState }: {
   const [codeStatus, setCodeStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const [syncCode, setSyncCode] = useState('');
 
-  function encodeSyncCode(json: string) {
-    return btoa(encodeURIComponent(json));
+  function encodeSyncCode(json: string): string | null {
+    try {
+      return btoa(encodeURIComponent(json));
+    } catch {
+      return null;
+    }
   }
 
-  function decodeSyncCode(code: string) {
-    return decodeURIComponent(atob(code.trim()));
+  function decodeSyncCode(code: string): string | null {
+    try {
+      return decodeURIComponent(atob(code.trim()));
+    } catch {
+      return null;
+    }
   }
 
   function handleExport() {
@@ -342,8 +350,13 @@ function SyncSection({ color, exportState, importState }: {
   }
 
   async function handleCopySyncCode() {
+    const code = encodeSyncCode(exportState());
+    if (!code) {
+      setCodeStatus('error');
+      setTimeout(() => setCodeStatus('idle'), 3000);
+      return;
+    }
     try {
-      const code = encodeSyncCode(exportState());
       await navigator.clipboard.writeText(code);
       setCodeStatus('ok');
       setTimeout(() => setCodeStatus('idle'), 3000);
@@ -354,16 +367,16 @@ function SyncSection({ color, exportState, importState }: {
   }
 
   function handleApplySyncCode() {
-    try {
-      const decoded = decodeSyncCode(syncCode);
-      const ok = importState(decoded);
-      setImportStatus(ok ? 'ok' : 'error');
-      setTimeout(() => setImportStatus('idle'), 4000);
-      if (ok) setSyncCode('');
-    } catch {
+    const decoded = decodeSyncCode(syncCode);
+    if (!decoded) {
       setImportStatus('error');
       setTimeout(() => setImportStatus('idle'), 4000);
+      return;
     }
+    const ok = importState(decoded);
+    setImportStatus(ok ? 'ok' : 'error');
+    setTimeout(() => setImportStatus('idle'), 4000);
+    if (ok) setSyncCode('');
   }
 
   const btnBase: React.CSSProperties = {
@@ -398,7 +411,7 @@ function SyncSection({ color, exportState, importState }: {
         <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={handleImportFile} />
       </div>
       <div style={{ marginTop: 14, padding: '12px 12px 10px', borderRadius: 10, border: '1px solid #EEECEA', background: '#FAFAF8' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код синхронизации (без файла)</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код синхронизации (без файлов)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
           <button
             onClick={handleCopySyncCode}
