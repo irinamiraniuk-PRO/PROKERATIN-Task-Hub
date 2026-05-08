@@ -435,6 +435,8 @@ interface AppContextValue {
   addUserKBArticle: (data: Omit<UserKBArticle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
   updateUserKBArticle: (articleId: string, patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>>) => void;
   deleteUserKBArticle: (articleId: string) => void;
+  exportState: () => string;
+  importState: (json: string) => boolean;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -470,6 +472,7 @@ function showBrowserNotification(title: string, body: string) {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
   const prevUnreadCountRef = useRef<number>(0);
+  const notifInitializedRef = useRef(false);
 
   useEffect(() => {
     saveState(state);
@@ -499,10 +502,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Play sound & show browser notification when new unread notifications arrive
   useEffect(() => {
-    if (!state.currentUser) { prevUnreadCountRef.current = 0; return; }
+    if (!state.currentUser) {
+      prevUnreadCountRef.current = 0;
+      notifInitializedRef.current = false;
+      return;
+    }
     const myUnread = state.notifications.filter(
       n => n.userId === state.currentUser!.id && !n.read
     );
+    // On first render after login, set baseline without playing sound
+    if (!notifInitializedRef.current) {
+      prevUnreadCountRef.current = myUnread.length;
+      notifInitializedRef.current = true;
+      return;
+    }
     if (myUnread.length > prevUnreadCountRef.current) {
       playNotificationSound();
       const latest = [...myUnread].sort(
@@ -786,6 +799,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'DELETE_USER_KB_ARTICLE', articleId });
   }
 
+  function exportState(): string {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) return saved;
+    return JSON.stringify({
+      ...state,
+      currentUserId: state.currentUser?.id ?? null,
+      currentUser: null,
+    });
+  }
+
+  function importState(json: string): boolean {
+    try {
+      const parsed = JSON.parse(json) as Partial<AppState> & { currentUserId?: string };
+      const newState = toAppState(parsed);
+      localStorage.setItem(LS_KEY, json);
+      dispatch({ type: 'HYDRATE_STATE', state: newState });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
@@ -797,6 +832,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUserPassword, updateUserAvatar,
       createNote, updateNote, deleteNote,
       addUserKBArticle, updateUserKBArticle, deleteUserKBArticle,
+      exportState, importState,
     }}>
       {children}
     </AppContext.Provider>

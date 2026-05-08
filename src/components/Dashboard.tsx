@@ -223,13 +223,15 @@ function SmartHintsPanel({ hints, onTaskClick }: { hints: SmartHint[]; onTaskCli
   );
 }
 
-export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: string; onViewChange?: (view: View) => void }) {
+export default function Dashboard({ searchQuery, onViewChange, onOpenNotifications }: { searchQuery: string; onViewChange?: (view: View) => void; onOpenNotifications?: () => void }) {
   const { state } = useApp();
-  const { tasks, currentUser, users } = state;
+  const { tasks, currentUser, users, notifications } = state;
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'week' | 'incoming' | 'overdue'>('today');
 
   if (!currentUser) return null;
+
+  const unreadNotifCount = notifications.filter(n => n.userId === currentUser.id && !n.read).length;
 
   const now = new Date();
   const todayStr = toMinskDateStr(now);
@@ -354,18 +356,27 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textTransform: 'capitalize', letterSpacing: '-0.2px' }}>{dayName}</div>
           <div style={{ fontSize: 11, color: '#ADADAD', marginTop: 1 }}>{dateLabel}</div>
         </div>
-        <div style={{
-          width: 38, height: 38, borderRadius: 10, flexShrink: 0, position: 'relative',
-          background: `${color}10`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        <button
+          onClick={onOpenNotifications}
+          disabled={!onOpenNotifications}
+          style={{
+            width: 38, height: 38, borderRadius: 10, flexShrink: 0, position: 'relative',
+            background: `${color}10`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: 'none', cursor: onOpenNotifications ? 'pointer' : 'default',
+            transition: 'background 0.12s',
+          }}
+          title="Уведомления"
+          onMouseEnter={e => { if (onOpenNotifications) e.currentTarget.style.background = `${color}20`; }}
+          onMouseLeave={e => { e.currentTarget.style.background = `${color}10`; }}
+        >
           <span style={{ fontSize: 17 }}>🔔</span>
-          {(overdueTasks.length + pendingReviewTasks.length) > 0 && (
+          {unreadNotifCount > 0 && (
             <span style={{
               position: 'absolute', top: 6, right: 6, width: 8, height: 8,
               background: '#EF4444', borderRadius: '50%', border: '1.5px solid #fff',
             }} />
           )}
-        </div>
+        </button>
       </div>
 
       {/* ── Overview stats ── */}
