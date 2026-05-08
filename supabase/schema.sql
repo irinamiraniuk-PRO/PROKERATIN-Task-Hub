@@ -13,8 +13,8 @@ create table if not exists public.tasks (
   id text primary key,
   title text not null,
   description text not null,
-  created_by text not null,
-  assigned_to text not null,
+  created_by text not null references public.users(id) on delete restrict,
+  assigned_to text not null references public.users(id) on delete restrict,
   created_at timestamptz not null,
   deadline timestamptz not null,
   planned_date date,
@@ -47,7 +47,7 @@ create table if not exists public.comments (
 create table if not exists public.task_history (
   id text primary key,
   task_id text not null references public.tasks(id) on delete cascade,
-  actor_id text not null,
+  actor_id text not null references public.users(id) on delete restrict,
   action text not null,
   from_status text,
   to_status text,
@@ -68,7 +68,7 @@ create table if not exists public.notes (
 );
 
 create table if not exists public.user_settings (
-  user_id text primary key,
+  user_id text primary key references public.users(id) on delete cascade,
   settings jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );

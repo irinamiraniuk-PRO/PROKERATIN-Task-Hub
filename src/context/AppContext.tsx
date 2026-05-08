@@ -424,7 +424,8 @@ function normalizePersistedInput(parsed: unknown): PersistedStateData {
 }
 
 function toPersistedStateData(state: AppState): PersistedStateData {
-  const { currentUser: _currentUser, ...persisted } = state;
+  const persisted: PersistedStateData = { ...state };
+  delete (persisted as Partial<AppState>).currentUser;
   return {
     ...persisted,
   };

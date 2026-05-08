@@ -102,7 +102,6 @@ const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
 const SUPABASE_SYNC_ENABLED = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 const POLL_INTERVAL_MS = 2500;
 const MAX_POLL_INTERVAL_MS = 30000;
-const SYSTEM_SETTINGS_USER_ID = '__app__';
 
 class MissingSupabaseSyncAdapter implements StateSyncAdapter {
   status: SyncStatus = {
@@ -117,7 +116,8 @@ class MissingSupabaseSyncAdapter implements StateSyncAdapter {
     return null;
   }
 
-  save(_payload: string): void {
+  save(payload: string): void {
+    void payload;
     // noop when Supabase is not configured
   }
 
@@ -208,6 +208,17 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
     if (!response.ok) throw new Error(`Failed to delete ${table}`);
   }
 
+  private async deleteById(table: string, keyColumn: string, value: string): Promise<void> {
+    const response = await fetch(this.endpoint(table, `${keyColumn}=eq.${encodeURIComponent(value)}`), {
+      method: 'DELETE',
+      headers: {
+        ...this.headers,
+        Prefer: 'return=minimal',
+      },
+    });
+    if (!response.ok) throw new Error(`Failed to delete row from ${table}`);
+  }
+
   private async upsertRows(table: string, rows: unknown[]): Promise<void> {
     if (!rows.length) return;
     const response = await fetch(this.endpoint(table), {
@@ -219,6 +230,24 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
       body: JSON.stringify(rows),
     });
     if (!response.ok) throw new Error(`Failed to upsert ${table}`);
+  }
+
+  private async syncTable(table: string, keyColumn: string, rows: Array<Record<string, unknown>>): Promise<void> {
+    if (!rows.length) {
+      await this.deleteAll(table, keyColumn);
+      return;
+    }
+
+    await this.upsertRows(table, rows);
+    const existingRows = await this.fetchRows<Record<string, unknown>>(table, `select=${keyColumn}`);
+    const nextIds = new Set(rows.map(row => String(row[keyColumn])));
+    const obsoleteIds = existingRows
+      .map(row => String(row[keyColumn] ?? ''))
+      .filter(id => id && !nextIds.has(id));
+
+    for (const id of obsoleteIds) {
+      await this.deleteById(table, keyColumn, id);
+    }
   }
 
   private isEmptyStateData(data: PersistedStateData): boolean {
@@ -240,7 +269,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
       this.fetchRows<CommentRow>('comments', 'select=id,task_id,author_id,text,created_at,mentions&order=created_at.asc'),
       this.fetchRows<TaskHistoryRow>('task_history', 'select=id,task_id,actor_id,action,from_status,to_status,created_at,meta&order=created_at.asc'),
       this.fetchRows<NoteRow>('notes', 'select=id,user_id,title,content,emoji,color,pinned,created_at,updated_at&order=updated_at.desc'),
-      this.fetchRows<UserSettingsRow>('user_settings', `select=user_id,settings&user_id=eq.${encodeURIComponent(SYSTEM_SETTINGS_USER_ID)}&limit=1`),
+      this.fetchRows<UserSettingsRow>('user_settings', 'select=user_id,settings&order=updated_at.desc&limit=1'),
     ]);
 
     const commentsByTaskId = new Map<string, Task['comments']>();
@@ -284,11 +313,11 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
       plannedDate: row.planned_date ?? undefined,
       priority: row.priority,
       status: row.status,
-      tags: this.readJson<Task['tags']>(row.tags, undefined),
+      tags: this.readJson<Task['tags']>(row.tags, []),
       comments: commentsByTaskId.get(row.id) ?? [],
       history: historyByTaskId.get(row.id) ?? [],
-      checklist: this.readJson<Task['checklist']>(row.checklist, undefined),
-      attachments: this.readJson<Task['attachments']>(row.attachments, undefined),
+      checklist: this.readJson<Task['checklist']>(row.checklist, []),
+      attachments: this.readJson<Task['attachments']>(row.attachments, []),
       transferredTo: row.transferred_to ?? undefined,
       transferredFrom: row.transferred_from ?? undefined,
       sentToDirectorAt: row.sent_to_director_at ?? undefined,
@@ -297,7 +326,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
       parentRecurringId: row.parent_recurring_id ?? undefined,
       reactionDeadline: row.reaction_deadline ?? undefined,
       projectId: row.project_id ?? undefined,
-      dependsOn: this.readJson<string[] | undefined>(row.depends_on, undefined),
+      dependsOn: this.readJson<string[]>(row.depends_on, []),
     }));
 
     const notes: Note[] = noteRows.map((row) => ({
@@ -409,30 +438,26 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
       updated_at: note.updatedAt,
     }));
 
-    const userSettingsRows = [{
-      user_id: SYSTEM_SETTINGS_USER_ID,
-      settings: {
-        notifications: data.notifications ?? [],
-        projects: data.projects ?? [],
-        userKBArticles: data.userKBArticles ?? [],
-        dashboardTodos: data.dashboardTodos ?? {},
-      },
-      updated_at: nowIso,
-    }];
+    const settingsOwnerId = userRows[0]?.id;
+    const userSettingsRows = settingsOwnerId
+      ? [{
+          user_id: settingsOwnerId,
+          settings: {
+            notifications: data.notifications ?? [],
+            projects: data.projects ?? [],
+            userKBArticles: data.userKBArticles ?? [],
+            dashboardTodos: data.dashboardTodos ?? {},
+          },
+          updated_at: nowIso,
+        }]
+      : [];
 
-    await this.deleteAll('users', 'id');
-    await this.deleteAll('tasks', 'id');
-    await this.deleteAll('comments', 'id');
-    await this.deleteAll('task_history', 'id');
-    await this.deleteAll('notes', 'id');
-    await this.deleteAll('user_settings', 'user_id');
-
-    await this.upsertRows('users', userRows);
-    await this.upsertRows('tasks', taskRows);
-    await this.upsertRows('comments', commentRows);
-    await this.upsertRows('task_history', historyRows);
-    await this.upsertRows('notes', noteRows);
-    await this.upsertRows('user_settings', userSettingsRows);
+    await this.syncTable('users', 'id', userRows);
+    await this.syncTable('tasks', 'id', taskRows);
+    await this.syncTable('comments', 'id', commentRows);
+    await this.syncTable('task_history', 'id', historyRows);
+    await this.syncTable('notes', 'id', noteRows);
+    await this.syncTable('user_settings', 'user_id', userSettingsRows);
   }
 
   load(): string | null {
@@ -443,8 +468,8 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
     const data = this.parsePayload(payload);
     if (!data) return;
     this.latestFingerprint = this.fingerprint(data);
-    void this.pushStateData(data).catch(() => {
-      // ignore backend write errors; polling will retry when data changes again
+    void this.pushStateData(data).catch((error) => {
+      console.error('Supabase sync save failed', error);
     });
   }
 
