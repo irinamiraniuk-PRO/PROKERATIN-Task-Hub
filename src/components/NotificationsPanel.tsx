@@ -42,13 +42,17 @@ export default function NotificationsPanel({ onClose }: NotificationsPanelProps)
   const unreadCount = myNotifs.filter(n => !n.read).length;
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: MouseEvent | TouchEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         onClose();
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [onClose]);
 
   function handleNotifClick(n: Notification) {
@@ -58,10 +62,11 @@ export default function NotificationsPanel({ onClose }: NotificationsPanelProps)
   return (
     <div
       ref={panelRef}
+      className="notifications-panel"
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: 56,
-        right: 0,
+        right: 16,
         width: 360,
         maxHeight: 520,
         background: '#fff',

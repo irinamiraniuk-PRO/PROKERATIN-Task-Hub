@@ -330,3 +330,15 @@ button, input, select, textarea {
 @media (max-width: 900px) {
   .dashboard-stats-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* Notifications panel responsive positioning */
+@media (max-width: 640px) {
+  .notifications-panel {
+    position: fixed !important;
+    top: 56px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}

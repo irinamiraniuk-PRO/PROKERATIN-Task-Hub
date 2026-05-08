@@ -472,6 +472,7 @@ function showBrowserNotification(title: string, body: string) {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
   const prevUnreadCountRef = useRef<number>(0);
+  const notifInitializedRef = useRef(false);
 
   useEffect(() => {
     saveState(state);
@@ -501,10 +502,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Play sound & show browser notification when new unread notifications arrive
   useEffect(() => {
-    if (!state.currentUser) { prevUnreadCountRef.current = 0; return; }
+    if (!state.currentUser) {
+      prevUnreadCountRef.current = 0;
+      notifInitializedRef.current = false;
+      return;
+    }
     const myUnread = state.notifications.filter(
       n => n.userId === state.currentUser!.id && !n.read
     );
+    // On first render after login, set baseline without playing sound
+    if (!notifInitializedRef.current) {
+      prevUnreadCountRef.current = myUnread.length;
+      notifInitializedRef.current = true;
+      return;
+    }
     if (myUnread.length > prevUnreadCountRef.current) {
       playNotificationSound();
       const latest = [...myUnread].sort(

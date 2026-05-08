@@ -1,5 +1,4 @@
 
-import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import NotificationsPanel from './NotificationsPanel';
 import BrandLogo from './BrandLogo';
@@ -7,6 +6,9 @@ import BrandLogo from './BrandLogo';
 interface TopBarProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  showNotifications: boolean;
+  onToggleNotifications: () => void;
+  onCloseNotifications: () => void;
 }
 
 function getGreeting(name: string): string {
@@ -17,10 +19,9 @@ function getGreeting(name: string): string {
   return `Добрый вечер, ${firstName} 🌙`;
 }
 
-export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
+export default function TopBar({ searchQuery, onSearchChange, showNotifications, onToggleNotifications, onCloseNotifications }: TopBarProps) {
   const { state, logout } = useApp();
   const { currentUser, notifications } = state;
-  const [showNotifications, setShowNotifications] = useState(false);
 
   if (!currentUser) return null;
 
@@ -88,7 +89,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
       {/* Notifications bell */}
       <div style={{ position: 'relative' }}>
         <button
-          onClick={() => setShowNotifications(v => !v)}
+          onClick={onToggleNotifications}
           style={{
             width: 34,
             height: 34,
@@ -132,7 +133,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
         </button>
 
         {showNotifications && (
-          <NotificationsPanel onClose={() => setShowNotifications(false)} />
+          <NotificationsPanel onClose={onCloseNotifications} />
         )}
       </div>
 

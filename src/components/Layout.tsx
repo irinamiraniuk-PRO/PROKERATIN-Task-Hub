@@ -51,6 +51,7 @@ export default function Layout() {
   });
   const [showCreate, setShowCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const { currentUser, tasks } = state;
   const isDirector = currentUser?.role === 'director';
@@ -97,8 +98,8 @@ export default function Layout() {
 
   function renderView() {
     switch (view) {
-      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} />;
-      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} />;
+      case 'dashboard': return <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} onOpenNotifications={() => setShowNotifications(true)} />;
+      case 'calendar-planner': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onViewChange={v => changeView(v)} onOpenNotifications={() => setShowNotifications(true)} />;
       case 'week-planner': return <WeekPlanner searchQuery={searchQuery} />;
       case 'kanban': return (
         <div style={{ padding: '20px 24px' }}>
@@ -111,8 +112,8 @@ export default function Layout() {
       case 'outgoing': return <OutgoingTasks searchQuery={searchQuery} />;
       case 'waiting': return <WaitingTasks searchQuery={searchQuery} />;
       case 'pending-director': return <PendingDirectorReview searchQuery={searchQuery} />;
-      case 'director-review': return isDirector ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
-      case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} />;
+      case 'director-review': return isDirector ? <DirectorReviewQueue searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onOpenNotifications={() => setShowNotifications(true)} />;
+      case 'team': return isDirector ? <DirectorDashboard searchQuery={searchQuery} /> : <Dashboard searchQuery={searchQuery} onOpenNotifications={() => setShowNotifications(true)} />;
       case 'archive': return <Archive searchQuery={searchQuery} />;
       case 'settings': return <SettingsView />;
       case 'knowledge-base': return <KnowledgeBase />;
@@ -132,7 +133,13 @@ export default function Layout() {
         />
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <TopBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <TopBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showNotifications={showNotifications}
+          onToggleNotifications={() => setShowNotifications(v => !v)}
+          onCloseNotifications={() => setShowNotifications(false)}
+        />
         <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {renderView()}
         </main>
