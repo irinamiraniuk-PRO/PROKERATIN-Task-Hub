@@ -394,12 +394,15 @@ function SyncSection({ color, exportState, importState, syncStatus }: {
     cursor: 'pointer', transition: 'opacity 0.15s', fontFamily: 'var(--font)',
     border: 'none',
   };
+  const dataSourceLabel = syncStatus.mode === 'backend'
+    ? 'общий backend'
+    : 'localStorage (только это устройство)';
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>📲 Источник данных учётной записи</div>
       <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>
-        Текущий режим: <b>{syncStatus.mode === 'backend' ? 'общий backend' : 'localStorage (только это устройство)'}</b>.
+        Текущий режим: <b>{dataSourceLabel}</b>.
         {' '}
         В этом режиме данные не синхронизируются автоматически между телефоном и компьютером.
       </div>
