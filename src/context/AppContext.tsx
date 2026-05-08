@@ -532,6 +532,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const prevUnreadCountRef = useRef<number>(0);
   const notifInitializedRef = useRef(false);
   const lastStateFingerprintRef = useRef<string>('');
+  const syncReadyRef = useRef(!stateSyncAdapter.requiresBootstrapBeforeSave);
 
   useEffect(() => {
     if (!syncBootstrapReady) return;
@@ -543,8 +544,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return stateSyncAdapter.subscribe((payload) => {
-      if (!payload) {
+      const markReady = () => {
+        if (syncReadyRef.current) return;
+        syncReadyRef.current = true;
         setSyncBootstrapReady(true);
+      };
+      if (!payload) {
+        markReady();
         return;
       }
       try {
@@ -552,13 +558,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const nextState = toAppState(normalizePersistedInput(parsed));
         const nextFingerprint = getStateFingerprint(nextState);
         if (nextFingerprint === lastStateFingerprintRef.current) {
-          setSyncBootstrapReady(true);
+          markReady();
           return;
         }
         lastStateFingerprintRef.current = nextFingerprint;
         dispatch({ type: 'HYDRATE_STATE', state: nextState });
       } catch { /* ignore */ }
-      setSyncBootstrapReady(true);
+      markReady();
     });
   }, []);
 
