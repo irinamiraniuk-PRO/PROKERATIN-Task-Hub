@@ -8,16 +8,10 @@ import { parseMentions } from '../utils/mentions';
 import { createStateSyncAdapter, type SyncStatus } from '../utils/syncAdapter';
 import { ensureProfileForAuthUser, getSessionUser, signInWithLogin, signOutAuth, subscribeAuthState, updateAuthPassword } from '../utils/authService';
 import { uploadAttachmentDataUrl, uploadAvatarDataUrl } from '../utils/storageService';
+import { PROFILE_SEEDS_BY_LOGIN } from '../data/profileSeeds';
 
 const STATE_EXPORT_VERSION = 1;
 const stateSyncAdapter = createStateSyncAdapter();
-
-const PROFILE_SEEDS_BY_LOGIN: Record<string, { name: string; role: User['role']; color?: string }> = {
-  irina: { name: 'Ирина Миранюк', role: 'director', color: '#BE185D' },
-  ulyana: { name: 'Ульяна', role: 'employee', color: '#0891B2' },
-  natali: { name: 'Натали', role: 'employee', color: '#EA580C' },
-  marina: { name: 'Марина', role: 'employee', color: '#16A34A' },
-};
 
 type PersistedStateData = Omit<Partial<AppState>, 'currentUser'>;
 interface PersistedStatePayload {

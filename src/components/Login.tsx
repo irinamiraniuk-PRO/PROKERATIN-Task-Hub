@@ -1,14 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
+import { PROFILE_SEED_USERS } from '../data/profileSeeds';
 import BrandLogo from './BrandLogo';
-
-const FALLBACK_LOGIN_USERS: User[] = [
-  { id: 'irina', name: 'Ирина Миранюк', login: 'irina', role: 'director', color: '#BE185D' },
-  { id: 'ulyana', name: 'Ульяна', login: 'ulyana', role: 'employee', color: '#0891B2' },
-  { id: 'natali', name: 'Натали', login: 'natali', role: 'employee', color: '#EA580C' },
-  { id: 'marina', name: 'Марина', login: 'marina', role: 'employee', color: '#16A34A' },
-];
 
 /* ── helpers ─────────────────────────────────────── */
 function initials(name: string) {
@@ -306,7 +300,7 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
   const { state, login } = useApp();
-  const users = state.users.length > 0 ? state.users : FALLBACK_LOGIN_USERS;
+  const users = state.users.length > 0 ? state.users : PROFILE_SEED_USERS;
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
