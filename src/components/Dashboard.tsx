@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
 import type { View } from './Sidebar';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
-import { isStuck, getSmartHints, type SmartHint } from '../utils/taskAlerts';
 
 const TZ = 'Europe/Minsk';
+const DASHBOARD_TODOS_KEY_PREFIX = 'prokeratin_dashboard_todos_v1';
+
+interface TodoItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
 
 // Status colour/label map — defined once outside the component to avoid per-render recreation
 const STATUS_META: Record<string, { col: string; label: string }> = {
@@ -169,65 +175,52 @@ function TaskSection({ title, emoji, tasks, onSelect, emptyIcon, emptyText, acce
   );
 }
 
-function SmartHintsPanel({ hints, onTaskClick }: { hints: SmartHint[]; onTaskClick?: (taskId: string) => void }) {
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const visible = hints.filter(h => !dismissed.has(h.id));
-  if (visible.length === 0) return null;
-
-  const bg: Record<SmartHint['type'], string> = {
-    danger: '#FEF2F2',
-    warning: '#FFFBEB',
-    info: '#EFF6FF',
-  };
-  const border: Record<SmartHint['type'], string> = {
-    danger: '#FECACA',
-    warning: '#FDE68A',
-    info: '#BFDBFE',
-  };
-  const textColor: Record<SmartHint['type'], string> = {
-    danger: '#B91C1C',
-    warning: '#92400E',
-    info: '#1D4ED8',
-  };
-
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '-0.1px' }}>
-        <span>💡</span> Умные подсказки
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {visible.map(hint => (
-          <div
-            key={hint.id}
-            style={{
-              background: bg[hint.type], border: `1px solid ${border[hint.type]}`,
-              borderRadius: 8, padding: '9px 12px',
-              display: 'flex', alignItems: 'center', gap: 9,
-              cursor: hint.taskId ? 'pointer' : 'default',
-            }}
-            onClick={hint.taskId ? () => onTaskClick?.(hint.taskId!) : undefined}
-          >
-            <span style={{ fontSize: 15, flexShrink: 0 }}>{hint.emoji}</span>
-            <span style={{ flex: 1, fontSize: 12, fontWeight: 500, color: textColor[hint.type] }}>{hint.text}</span>
-            <button
-              onClick={e => { e.stopPropagation(); setDismissed(d => new Set([...d, hint.id])); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#ADADAD', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
-              title="Скрыть подсказку"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard({ searchQuery, onViewChange, onOpenNotifications }: { searchQuery: string; onViewChange?: (view: View) => void; onOpenNotifications?: () => void }) {
-  const { state } = useApp();
-  const { tasks, currentUser, users, notifications } = state;
+  const { state, createNote } = useApp();
+  const { tasks, currentUser, users, notifications, notes } = state;
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'week' | 'incoming' | 'overdue'>('today');
+  const [quickNoteTitle, setQuickNoteTitle] = useState('');
+  const [quickNoteContent, setQuickNoteContent] = useState('');
+  const [todoInput, setTodoInput] = useState('');
+  const [todoItems, setTodoItems] = useState<TodoItem[]>([]);
+
+  const todoStorageKey = `${DASHBOARD_TODOS_KEY_PREFIX}_${currentUser?.id ?? 'guest'}`;
+
+  useEffect(() => {
+    if (!currentUser) {
+      setTodoItems([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(todoStorageKey);
+      if (!raw) {
+        setTodoItems([]);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        setTodoItems([]);
+        return;
+      }
+      const normalized: TodoItem[] = parsed
+        .filter((item): item is TodoItem => (
+          typeof item?.id === 'string' &&
+          typeof item?.text === 'string' &&
+          typeof item?.done === 'boolean'
+        ))
+        .map(item => ({ ...item, text: item.text.trim() }))
+        .filter(item => item.text.length > 0);
+      setTodoItems(normalized);
+    } catch {
+      setTodoItems([]);
+    }
+  }, [todoStorageKey, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    localStorage.setItem(todoStorageKey, JSON.stringify(todoItems));
+  }, [todoItems, todoStorageKey, currentUser]);
 
   if (!currentUser) return null;
 
@@ -283,12 +276,6 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
     t.status === 'overdue' || (new Date(t.deadline) < now && !['completed', 'closed'].includes(t.status))
   ));
 
-  // Pending director review
-  const pendingReviewTasks = applySearch(myTasks.filter(t => t.status === 'pending_director_review'));
-
-  // Waiting response
-  const waitingTasks = applySearch(myTasks.filter(t => t.status === 'waiting_response'));
-
   // Stats
   const completedToday = myTasks.filter(t =>
     ['completed', 'closed'].includes(t.status) && isSameDayStr(t.deadline, todayStr)
@@ -305,18 +292,14 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
   const totalCompleted = myTasks.filter(t => ['completed', 'closed'].includes(t.status)).length;
   const totalEff = myTasks.length > 0 ? Math.round((totalCompleted / myTasks.length) * 100) : 0;
 
-  // Stuck tasks (no activity > 3 days)
-  const stuckTasks = applySearch(activeTasks.filter(t =>
-    !['completed', 'closed'].includes(t.status) && isStuck(t)
-  ));
-
-  // Smart hints
-  const smartHints = getSmartHints(tasks, users, currentUser.id, isDirector);
-
   const color = currentUser.color ?? '#BE185D';
   const incomingTasks = applySearch(tasks.filter(t =>
     t.transferredTo === currentUser.id && t.status === 'transferred'
   ));
+  const myRecentNotes = notes
+    .filter(n => n.userId === currentUser.id)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 4);
 
   // Director extras
   const employees = users.filter(u => u.role === 'employee');
@@ -324,6 +307,33 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
   const dayName = now.toLocaleDateString('ru-RU', { timeZone: TZ, weekday: 'long' });
   const dateLabel = now.toLocaleDateString('ru-RU', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' });
   const timeLabel = now.toLocaleTimeString('ru-RU', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+
+  function handleCreateQuickNote() {
+    if (!quickNoteTitle.trim() && !quickNoteContent.trim()) return;
+    createNote({
+      title: quickNoteTitle.trim() || 'Новая заметка',
+      content: quickNoteContent.trim(),
+      emoji: '📝',
+      color: '#FFFBEB',
+    });
+    setQuickNoteTitle('');
+    setQuickNoteContent('');
+  }
+
+  function handleAddTodo() {
+    const text = todoInput.trim();
+    if (!text) return;
+    setTodoItems(prev => [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text, done: false }, ...prev]);
+    setTodoInput('');
+  }
+
+  function handleUpdateTodo(id: string, text: string) {
+    setTodoItems(prev => prev.map(item => item.id === id ? { ...item, text } : item));
+  }
+
+  function handleDeleteTodo(id: string) {
+    setTodoItems(prev => prev.filter(item => item.id !== id));
+  }
 
   return (
     <div className="anim-fade-in" style={{ padding: '20px 22px 32px', maxWidth: 1140, background: '#F0EFF9', minHeight: '100%' }}>
@@ -416,45 +426,6 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
           ))}
         </div>
       </div>
-
-      {/* ── Alert banners ── */}
-      {(overdueTasks.length > 0 || pendingReviewTasks.length > 0 || waitingTasks.length > 0 || stuckTasks.length > 0) && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          {overdueTasks.length > 0 && (
-            <div onClick={() => onViewChange?.('my-tasks')} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
-              <span style={{ fontSize: 14 }}>⚠️</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>Просрочено: {overdueTasks.length}</span>
-            </div>
-          )}
-          {pendingReviewTasks.length > 0 && (
-            <div onClick={() => onViewChange?.(isDirector ? 'director-review' : 'pending-director')} style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
-              <span style={{ fontSize: 14 }}>🔍</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#B45309' }}>На проверке: {pendingReviewTasks.length}</span>
-            </div>
-          )}
-          {waitingTasks.length > 0 && (
-            <div onClick={() => onViewChange?.('waiting')} style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
-              <span style={{ fontSize: 14 }}>⏳</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#C2410C' }}>Ждут ответа: {waitingTasks.length}</span>
-            </div>
-          )}
-          {stuckTasks.length > 0 && (
-            <div onClick={() => onViewChange?.('my-tasks')} style={{ background: '#F7F7F5', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
-              <span style={{ fontSize: 14 }}>😴</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Зависли: {stuckTasks.length}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Smart hints ── */}
-      <SmartHintsPanel
-        hints={smartHints}
-        onTaskClick={taskId => {
-          const t = tasks.find(x => x.id === taskId);
-          if (t) setSelectedTask(t);
-        }}
-      />
 
       {/* ── Main 2-col: task list (left) + calendar/summary (right) ── */}
       <div className="dashboard-main-grid">
@@ -598,6 +569,113 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
                 <div style={{ fontSize: 10, color: '#ADADAD' }}>{e.done} из {e.total} задач</div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }} className="responsive-grid-2">
+        <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1px solid #ECEAFF', boxShadow: '0 2px 10px rgba(100,60,200,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A' }}>📝 Быстрые заметки</span>
+            <button
+              onClick={() => onViewChange?.('notes')}
+              style={{ border: 'none', background: 'none', color, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Все заметки →
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+            <input
+              value={quickNoteTitle}
+              onChange={e => setQuickNoteTitle(e.target.value)}
+              placeholder="Заголовок"
+              style={{ width: '100%', border: '1px solid #EEECEA', borderRadius: 8, padding: '8px 10px', fontSize: 12.5, outline: 'none' }}
+            />
+            <textarea
+              value={quickNoteContent}
+              onChange={e => setQuickNoteContent(e.target.value)}
+              placeholder="Текст заметки..."
+              style={{ width: '100%', border: '1px solid #EEECEA', borderRadius: 8, padding: '8px 10px', fontSize: 12.5, outline: 'none', minHeight: 70, resize: 'vertical' }}
+            />
+            <button
+              onClick={handleCreateQuickNote}
+              disabled={!quickNoteTitle.trim() && !quickNoteContent.trim()}
+              style={{
+                alignSelf: 'flex-start', border: 'none', borderRadius: 8, padding: '7px 12px',
+                fontSize: 12, fontWeight: 600, cursor: (!quickNoteTitle.trim() && !quickNoteContent.trim()) ? 'default' : 'pointer',
+                background: (!quickNoteTitle.trim() && !quickNoteContent.trim()) ? '#E5E7EB' : color,
+                color: '#fff',
+              }}
+            >
+              + Создать заметку
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {myRecentNotes.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#ADADAD' }}>Пока нет заметок</div>
+            ) : (
+              myRecentNotes.map(note => (
+                <div key={note.id} style={{ background: '#F9FAFB', border: '1px solid #EEECEA', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A' }}>{note.emoji} {note.title}</div>
+                  {note.content && <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 3 }}>{note.content.slice(0, 80)}{note.content.length > 80 ? '…' : ''}</div>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1px solid #ECEAFF', boxShadow: '0 2px 10px rgba(100,60,200,0.06)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A', marginBottom: 10 }}>☑️ To-Do List</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <input
+              value={todoInput}
+              onChange={e => setTodoInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddTodo(); }}
+              placeholder="Новый пункт..."
+              style={{ flex: 1, border: '1px solid #EEECEA', borderRadius: 8, padding: '8px 10px', fontSize: 12.5, outline: 'none' }}
+            />
+            <button
+              onClick={handleAddTodo}
+              disabled={!todoInput.trim()}
+              style={{
+                border: 'none', borderRadius: 8, padding: '7px 12px',
+                fontSize: 12, fontWeight: 600, cursor: todoInput.trim() ? 'pointer' : 'default',
+                background: todoInput.trim() ? color : '#E5E7EB', color: '#fff',
+              }}
+            >
+              Добавить
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {todoItems.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#ADADAD' }}>Список пуст</div>
+            ) : (
+              todoItems.map(item => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F9FAFB', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={item.done}
+                    onChange={() => setTodoItems(prev => prev.map(todo => todo.id === item.id ? { ...todo, done: !todo.done } : todo))}
+                  />
+                  <input
+                    value={item.text}
+                    onChange={e => handleUpdateTodo(item.id, e.target.value)}
+                    style={{
+                      flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5,
+                      color: item.done ? '#9CA3AF' : '#1A1A1A',
+                      textDecoration: item.done ? 'line-through' : 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => handleDeleteTodo(item.id)}
+                    style={{ border: 'none', background: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+                    title="Удалить пункт"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
