@@ -9,11 +9,11 @@ interface BrandLogoProps {
 
 export default function BrandLogo({ width, height, style }: BrandLogoProps) {
   return (
-    <div style={{ width, height, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', ...style }}>
+    <div style={{ width, height, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, ...style }}>
       <img
         src={logoSrc}
         alt="PROKERATIN"
-        style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        style={{ height: '100%', width: 'auto', display: 'block' }}
       />
     </div>
   );
