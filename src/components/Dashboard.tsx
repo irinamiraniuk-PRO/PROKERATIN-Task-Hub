@@ -7,6 +7,9 @@ import TaskModal from './TaskModal';
 
 const TZ = 'Europe/Minsk';
 const DASHBOARD_TODOS_LS_KEY = 'prokeratin_dashboard_todos_v1';
+const QUICK_NOTE_EMOJI = '📝';
+const QUICK_NOTE_COLOR = '#FFFBEB';
+const NOTE_PREVIEW_LENGTH = 80;
 
 interface TodoItem {
   id: string;
@@ -37,6 +40,18 @@ function loadDashboardTodos(): Record<string, TodoItem[]> {
   } catch {
     return {};
   }
+}
+
+function createTodoId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const random = new Uint32Array(2);
+    crypto.getRandomValues(random);
+    return `${Date.now().toString(36)}_${random[0].toString(36)}${random[1].toString(36)}`;
+  }
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 // Status colour/label map — defined once outside the component to avoid per-render recreation
@@ -307,8 +322,8 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
     createNote({
       title: quickNoteTitle.trim() || 'Новая заметка',
       content: quickNoteContent.trim(),
-      emoji: '📝',
-      color: '#FFFBEB',
+      emoji: QUICK_NOTE_EMOJI,
+      color: QUICK_NOTE_COLOR,
     });
     setQuickNoteTitle('');
     setQuickNoteContent('');
@@ -319,7 +334,7 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
     if (!text) return;
     setTodoByUser(prev => ({
       ...prev,
-      [currentUserId]: [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text, done: false }, ...(prev[currentUserId] ?? [])],
+      [currentUserId]: [{ id: createTodoId(), text, done: false }, ...(prev[currentUserId] ?? [])],
     }));
     setTodoInput('');
   }
@@ -336,6 +351,17 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
       ...prev,
       [currentUserId]: (prev[currentUserId] ?? []).filter(item => item.id !== id),
     }));
+  }
+
+  function handleTodoBlur(id: string, text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      handleDeleteTodo(id);
+      return;
+    }
+    if (trimmed !== text) {
+      handleUpdateTodo(id, trimmed);
+    }
   }
 
   return (
@@ -620,7 +646,7 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
               myRecentNotes.map(note => (
                 <div key={note.id} style={{ background: '#F9FAFB', border: '1px solid #EEECEA', borderRadius: 8, padding: '8px 10px' }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A' }}>{note.emoji} {note.title}</div>
-                  {note.content && <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 3 }}>{note.content.slice(0, 80)}{note.content.length > 80 ? '…' : ''}</div>}
+                  {note.content && <div style={{ fontSize: 11.5, color: '#6B7280', marginTop: 3 }}>{note.content.slice(0, NOTE_PREVIEW_LENGTH)}{note.content.length > NOTE_PREVIEW_LENGTH ? '…' : ''}</div>}
                 </div>
               ))
             )}
@@ -666,6 +692,7 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
                   <input
                     value={item.text}
                     onChange={e => handleUpdateTodo(item.id, e.target.value)}
+                    onBlur={e => handleTodoBlur(item.id, e.target.value)}
                     style={{
                       flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5,
                       color: item.done ? '#9CA3AF' : '#1A1A1A',
