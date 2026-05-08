@@ -8,21 +8,28 @@ export interface SyncStatus {
 
 export interface StateSyncAdapter {
   status: SyncStatus;
+  requiresBootstrapBeforeSave: boolean;
   load: () => string | null;
   save: (payload: string) => void;
-  subscribe: (onPayload: (payload: string) => void) => () => void;
+  subscribe: (onPayload: (payload: string | null) => void) => () => void;
 }
 
 export const LOCAL_STATE_KEY = 'prokeratin_state_v9';
-const BACKEND_SYNC_BASE_URL = (import.meta.env.VITE_SYNC_BACKEND_URL ?? '').trim();
-const BACKEND_SYNC_ENABLED = Boolean(BACKEND_SYNC_BASE_URL);
+const BACKEND_CACHE_KEY = 'prokeratin_backend_cache_v1';
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '').trim().replace(/\/+$/, '');
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
+const SUPABASE_TABLE = (import.meta.env.VITE_SUPABASE_SYNC_TABLE ?? 'app_states').trim();
+const SYNC_ACCOUNT_ID = (import.meta.env.VITE_SYNC_ACCOUNT_ID ?? 'prokeratin-shared').trim();
+const POLL_INTERVAL_MS = 2500;
+const SUPABASE_SYNC_ENABLED = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 class LocalStorageSyncAdapter implements StateSyncAdapter {
   status: SyncStatus = {
     mode: 'localStorage',
     supportsCrossDeviceSync: false,
-    warning: 'localStorage хранится только на текущем устройстве и не синхронизируется между телефоном и компьютером.',
+    warning: 'Сейчас данные хранятся локально на устройстве и не синхронизируются между телефоном и компьютером. Для синхронизации нужно подключить общую базу данных.',
   };
+  requiresBootstrapBeforeSave = false;
 
   load(): string | null {
     try {
@@ -40,7 +47,9 @@ class LocalStorageSyncAdapter implements StateSyncAdapter {
     }
   }
 
-  subscribe(onPayload: (payload: string) => void): () => void {
+  subscribe(onPayload: (payload: string | null) => void): () => void {
+    onPayload(null);
+
     function handleStorage(event: StorageEvent) {
       if (event.storageArea !== localStorage) return;
       if (event.key !== LOCAL_STATE_KEY) return;
@@ -53,35 +62,134 @@ class LocalStorageSyncAdapter implements StateSyncAdapter {
   }
 }
 
-// Backend adapter contract is prepared for future shared storage:
-// GET  /sync/state/:accountId
-// PUT  /sync/state/:accountId
-// SSE  /sync/state/:accountId/stream
-class BackendSyncAdapterPlaceholder implements StateSyncAdapter {
+class SupabaseSyncAdapter implements StateSyncAdapter {
   status: SyncStatus = {
     mode: 'backend',
-    supportsCrossDeviceSync: false,
-    warning: 'Backend URL указан, но backend-синхронизация ещё не реализована в клиенте.',
+    supportsCrossDeviceSync: true,
+    warning: '',
   };
+  requiresBootstrapBeforeSave = true;
+  private latestPayload: string | null = null;
+  private bootstrapDone = false;
+
+  private get requestUrl(): string {
+    const query = new URLSearchParams({
+      account_id: `eq.${SYNC_ACCOUNT_ID}`,
+      select: 'payload,updated_at',
+      limit: '1',
+      order: 'updated_at.desc',
+    });
+    return `${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_TABLE)}?${query.toString()}`;
+  }
+
+  private get headers(): HeadersInit {
+    return {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    };
+  }
 
   load(): string | null {
-    return null;
+    try {
+      return localStorage.getItem(BACKEND_CACHE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  private cachePayload(payload: string) {
+    this.latestPayload = payload;
+    try {
+      localStorage.setItem(BACKEND_CACHE_KEY, payload);
+    } catch {
+      // ignore cache write errors
+    }
+  }
+
+  private async fetchLatestPayload(): Promise<string | null> {
+    const response = await fetch(this.requestUrl, {
+      method: 'GET',
+      headers: this.headers,
+    });
+    if (!response.ok) return null;
+    const rows = await response.json() as Array<{ payload?: unknown; updated_at?: string }>;
+    if (!rows.length) return null;
+    const row = rows[0];
+    const updatedAt = typeof row.updated_at === 'string' ? row.updated_at : '';
+    if (!updatedAt || row.payload == null) return null;
+    return typeof row.payload === 'string' ? row.payload : JSON.stringify(row.payload);
   }
 
   save(_payload: string): void {
-    void _payload;
-    // Placeholder: backend persistence will be implemented in a dedicated client.
+    this.cachePayload(_payload);
+    const body = JSON.stringify({
+      account_id: SYNC_ACCOUNT_ID,
+      payload: _payload,
+    });
+    void fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_TABLE)}`, {
+      method: 'POST',
+      headers: {
+        ...this.headers,
+        Prefer: 'resolution=merge-duplicates,return=representation',
+      },
+      body,
+    })
+      .then(() => undefined)
+      .catch(() => {
+        // ignore network errors; next save/poll will retry
+      });
   }
 
-  subscribe(_onPayload: (payload: string) => void): () => void {
-    void _onPayload;
-    return () => undefined;
+  subscribe(onPayload: (payload: string | null) => void): () => void {
+    let disposed = false;
+    let timerId: number | null = null;
+
+    const emitBootstrapDone = () => {
+      if (this.bootstrapDone) return;
+      this.bootstrapDone = true;
+      onPayload(null);
+    };
+
+    const poll = async () => {
+      try {
+        const remote = await this.fetchLatestPayload();
+        if (!remote) {
+          emitBootstrapDone();
+          return;
+        }
+        if (remote !== this.latestPayload) {
+          this.cachePayload(remote);
+          onPayload(remote);
+        } else {
+          emitBootstrapDone();
+        }
+      } catch {
+        emitBootstrapDone();
+      }
+    };
+
+    const loop = async () => {
+      if (disposed) return;
+      await poll();
+      if (disposed) return;
+      timerId = window.setTimeout(() => { void loop(); }, POLL_INTERVAL_MS);
+    };
+
+    void loop();
+
+    return () => {
+      disposed = true;
+      if (timerId != null) {
+        window.clearTimeout(timerId);
+      }
+    };
   }
 }
 
 export function createStateSyncAdapter(): StateSyncAdapter {
-  if (BACKEND_SYNC_ENABLED) {
-    return new BackendSyncAdapterPlaceholder();
+  if (SUPABASE_SYNC_ENABLED) {
+    return new SupabaseSyncAdapter();
   }
   return new LocalStorageSyncAdapter();
 }

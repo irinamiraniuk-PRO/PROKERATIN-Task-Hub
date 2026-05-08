@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, useState, type ReactNode } from 'react';
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
@@ -403,15 +403,23 @@ function normalizePersistedInput(parsed: unknown): PersistedStateData {
   return parsed as PersistedStateData;
 }
 
+function toPersistedStateData(state: AppState): PersistedStateData {
+  return {
+    ...state,
+    currentUserId: state.currentUser?.id,
+    currentUser: undefined,
+  };
+}
+
+function getStateFingerprint(state: AppState): string {
+  return JSON.stringify(toPersistedStateData(state));
+}
+
 function serializeState(state: AppState): string {
   const payload: PersistedStatePayload = {
     version: STATE_EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
-    data: {
-      ...state,
-      currentUserId: state.currentUser?.id,
-      currentUser: undefined,
-    },
+    data: toPersistedStateData(state),
   };
   return JSON.stringify(payload);
 }
@@ -426,14 +434,16 @@ function loadState(): AppState {
     } catch { /* ignore */ }
   }
 
-  for (const key of LEGACY_LS_KEYS) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw);
-      const normalized = normalizePersistedInput(parsed);
-      return toAppState(normalized);
-    } catch { /* ignore */ }
+  if (stateSyncAdapter.status.mode !== 'backend') {
+    for (const key of LEGACY_LS_KEYS) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const normalized = normalizePersistedInput(parsed);
+        return toAppState(normalized);
+      } catch { /* ignore */ }
+    }
   }
   return initialState;
 }
@@ -518,19 +528,37 @@ function showBrowserNotification(title: string, body: string) {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const [syncBootstrapReady, setSyncBootstrapReady] = useState(!stateSyncAdapter.requiresBootstrapBeforeSave);
   const prevUnreadCountRef = useRef<number>(0);
   const notifInitializedRef = useRef(false);
+  const lastStateFingerprintRef = useRef<string>('');
 
   useEffect(() => {
+    if (!syncBootstrapReady) return;
+    const fingerprint = getStateFingerprint(state);
+    if (fingerprint === lastStateFingerprintRef.current) return;
+    lastStateFingerprintRef.current = fingerprint;
     saveState(state);
-  }, [state]);
+  }, [state, syncBootstrapReady]);
 
   useEffect(() => {
     return stateSyncAdapter.subscribe((payload) => {
+      if (!payload) {
+        setSyncBootstrapReady(true);
+        return;
+      }
       try {
         const parsed = JSON.parse(payload);
-        dispatch({ type: 'HYDRATE_STATE', state: toAppState(normalizePersistedInput(parsed)) });
+        const nextState = toAppState(normalizePersistedInput(parsed));
+        const nextFingerprint = getStateFingerprint(nextState);
+        if (nextFingerprint === lastStateFingerprintRef.current) {
+          setSyncBootstrapReady(true);
+          return;
+        }
+        lastStateFingerprintRef.current = nextFingerprint;
+        dispatch({ type: 'HYDRATE_STATE', state: nextState });
       } catch { /* ignore */ }
+      setSyncBootstrapReady(true);
     });
   }, []);
 

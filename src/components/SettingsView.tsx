@@ -404,7 +404,9 @@ function SyncSection({ color, exportState, importState, syncStatus }: {
       <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>
         Текущий режим: <strong>{dataSourceLabel}</strong>.
         {' '}
-        В этом режиме данные не синхронизируются автоматически между телефоном и компьютером.
+        {syncStatus.supportsCrossDeviceSync
+          ? 'Изменения синхронизируются между телефоном и компьютером через общую базу данных.'
+          : 'В этом режиме данные не синхронизируются автоматически между телефоном и компьютером.'}
       </div>
       {!syncStatus.supportsCrossDeviceSync && (
         <div style={{ marginBottom: 14, background: '#FEF3C7', color: '#92400E', borderRadius: 10, border: '1px solid #FDE68A', padding: '10px 12px', fontSize: 12.5, lineHeight: 1.5 }}>
