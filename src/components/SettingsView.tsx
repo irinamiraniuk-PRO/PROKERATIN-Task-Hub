@@ -303,7 +303,18 @@ function SyncSection({ color, exportState, importState }: {
   importState: (json: string) => boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const syncCodeRef = useRef<HTMLTextAreaElement>(null);
   const [importStatus, setImportStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [codeStatus, setCodeStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [syncCode, setSyncCode] = useState('');
+
+  function encodeSyncCode(json: string) {
+    return btoa(encodeURIComponent(json));
+  }
+
+  function decodeSyncCode(code: string) {
+    return decodeURIComponent(atob(code.trim()));
+  }
 
   function handleExport() {
     const json = exportState();
@@ -330,6 +341,31 @@ function SyncSection({ color, exportState, importState }: {
     e.target.value = '';
   }
 
+  async function handleCopySyncCode() {
+    try {
+      const code = encodeSyncCode(exportState());
+      await navigator.clipboard.writeText(code);
+      setCodeStatus('ok');
+      setTimeout(() => setCodeStatus('idle'), 3000);
+    } catch {
+      setCodeStatus('error');
+      setTimeout(() => setCodeStatus('idle'), 3000);
+    }
+  }
+
+  function handleApplySyncCode() {
+    try {
+      const decoded = decodeSyncCode(syncCode);
+      const ok = importState(decoded);
+      setImportStatus(ok ? 'ok' : 'error');
+      setTimeout(() => setImportStatus('idle'), 4000);
+      if (ok) setSyncCode('');
+    } catch {
+      setImportStatus('error');
+      setTimeout(() => setImportStatus('idle'), 4000);
+    }
+  }
+
   const btnBase: React.CSSProperties = {
     padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
     cursor: 'pointer', transition: 'opacity 0.15s', fontFamily: 'var(--font)',
@@ -340,7 +376,7 @@ function SyncSection({ color, exportState, importState }: {
     <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>📲 Синхронизация между устройствами</div>
       <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>
-        Данные хранятся локально в браузере. Чтобы перенести все данные (пароль, фото, заметки, задачи) на другое устройство, экспортируйте файл резервной копии и импортируйте его на новом устройстве.
+        Данные хранятся локально в браузере. Для синхронизации между компьютером и телефоном используйте экспорт/импорт или код синхронизации: переносятся задачи, заметки, пароли и аватарки.
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
@@ -361,6 +397,70 @@ function SyncSection({ color, exportState, importState }: {
         </button>
         <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={handleImportFile} />
       </div>
+      <div style={{ marginTop: 14, padding: '12px 12px 10px', borderRadius: 10, border: '1px solid #EEECEA', background: '#FAFAF8' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код синхронизации (без файла)</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+          <button
+            onClick={handleCopySyncCode}
+            style={{ ...btnBase, background: '#1F2937', color: '#fff' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+          >
+            📋 Скопировать код с этого устройства
+          </button>
+          <button
+            onClick={() => syncCodeRef.current?.focus()}
+            style={{ ...btnBase, background: '#F4F4F2', color: '#333', border: '1.5px solid #DEDAD6' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+          >
+            ✏️ Вставить код на этом устройстве
+          </button>
+        </div>
+        <textarea
+          ref={syncCodeRef}
+          value={syncCode}
+          onChange={e => setSyncCode(e.target.value)}
+          placeholder="Вставьте код синхронизации сюда"
+          style={{
+            width: '100%',
+            minHeight: 84,
+            resize: 'vertical',
+            borderRadius: 8,
+            border: '1.5px solid #DEDAD6',
+            padding: '10px 12px',
+            fontSize: 12,
+            fontFamily: 'var(--font)',
+            boxSizing: 'border-box',
+            outline: 'none',
+            background: '#fff',
+          }}
+        />
+        <div style={{ marginTop: 8 }}>
+          <button
+            onClick={handleApplySyncCode}
+            disabled={!syncCode.trim()}
+            style={{
+              ...btnBase,
+              background: syncCode.trim() ? color : '#E8E8E8',
+              color: syncCode.trim() ? '#fff' : '#A3A3A3',
+              cursor: syncCode.trim() ? 'pointer' : 'not-allowed',
+            }}
+          >
+            ✅ Применить код синхронизации
+          </button>
+        </div>
+      </div>
+      {codeStatus === 'ok' && (
+        <div style={{ marginTop: 12, background: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500 }}>
+          ✓ Код синхронизации скопирован в буфер обмена.
+        </div>
+      )}
+      {codeStatus === 'error' && (
+        <div style={{ marginTop: 12, background: '#FEF2F2', color: '#B91C1C', borderRadius: 8, padding: '9px 14px', fontSize: 13 }}>
+          Не удалось скопировать код. Разрешите доступ к буферу обмена или скопируйте файл-экспорт.
+        </div>
+      )}
       {importStatus === 'ok' && (
         <div style={{ marginTop: 12, background: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500 }}>
           ✓ Данные успешно импортированы. Все изменения применены.

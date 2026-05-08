@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { View } from './Sidebar';
+import BrandLogo from './BrandLogo';
 
 interface BottomNavProps {
   currentView: View;
@@ -125,14 +126,9 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
             <div style={{ width: 36, height: 4, borderRadius: 2, background: '#E0DFDD', margin: '0 auto 12px' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {/* Mini logo */}
-                <div style={{
-                  width: 28, height: 28, borderRadius: 7,
-                  background: 'linear-gradient(135deg, #BE185D, #DB2777)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 900, color: '#fff',
-                  boxShadow: '0 2px 8px rgba(190,24,93,0.3)', flexShrink: 0,
-                }}>P</div>
+                <div style={{ width: 28, height: 28, borderRadius: 7, overflow: 'hidden', border: '1px solid #EEECEA', background: '#fff', flexShrink: 0 }}>
+                  <BrandLogo width={28} height={28} />
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
                     width: 36, height: 36, borderRadius: '50%', overflow: 'hidden',
