@@ -9,8 +9,10 @@ import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 
 const LS_KEY = 'prokeratin_state_v9';
+const LEGACY_LS_KEYS = ['prokeratin_state_v8', 'prokeratin_state_v7', 'prokeratin_state_v6'];
 
 type Action =
+  | { type: 'HYDRATE_STATE'; state: AppState }
   | { type: 'LOGIN'; user: User }
   | { type: 'LOGOUT' }
   | { type: 'CREATE_TASK'; task: Task; notifications: Notification[] }
@@ -110,6 +112,8 @@ function spawnRecurringTask(task: Task, actorId: string): Task {
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'HYDRATE_STATE':
+      return action.state;
     case 'LOGIN':
       return { ...state, currentUser: action.user };
     case 'LOGOUT':
@@ -356,9 +360,10 @@ const initialState: AppState = {
 };
 
 function loadState(): AppState {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
+  for (const key of [LS_KEY, ...LEGACY_LS_KEYS]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
       const parsed = JSON.parse(raw) as Partial<AppState> & { currentUserId?: string };
       const users = (parsed.users ?? USERS) as User[];
       const savedUser = parsed.currentUserId
@@ -373,8 +378,8 @@ function loadState(): AppState {
         notes: parsed.notes ?? [],
         userKBArticles: parsed.userKBArticles ?? [],
       };
-    }
-  } catch { /* ignore */ }
+    } catch { /* ignore */ }
+  }
   return initialState;
 }
 
@@ -465,6 +470,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (event.storageArea !== localStorage) return;
+      if (event.key !== LS_KEY) return;
+      if (!event.newValue) return;
+      try {
+        const parsed = JSON.parse(event.newValue) as Partial<AppState> & { currentUserId?: string };
+        const users = (parsed.users ?? USERS) as User[];
+        const savedUser = parsed.currentUserId
+          ? (users.find(u => u.id === parsed.currentUserId) ?? null)
+          : null;
+        dispatch({
+          type: 'HYDRATE_STATE',
+          state: {
+            ...initialState,
+            ...parsed,
+            currentUser: savedUser,
+            notifications: parsed.notifications ?? [],
+            projects: parsed.projects ?? INITIAL_PROJECTS,
+            notes: parsed.notes ?? [],
+            userKBArticles: parsed.userKBArticles ?? [],
+          },
+        });
+      } catch { /* ignore */ }
+    }
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   // Request browser notification permission once on mount
   useEffect(() => {

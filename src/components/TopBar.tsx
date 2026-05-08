@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import NotificationsPanel from './NotificationsPanel';
+import BrandLogo from './BrandLogo';
 
 interface TopBarProps {
   searchQuery: string;
@@ -44,6 +45,10 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
       zIndex: 100,
       flexShrink: 0,
     }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <BrandLogo width={88} height={28} />
+      </div>
+
       {/* Search */}
       <div style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
         <span aria-hidden="true" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#C0BDB9', pointerEvents: 'none' }}>
@@ -164,6 +169,7 @@ export default function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
 
         <button
           onClick={logout}
+          className="topbar-logout-btn"
           style={{
             padding: '6px 12px',
             borderRadius: 7,

@@ -39,6 +39,7 @@
 html, body, #root {
   height: 100%;
   width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -232,6 +233,7 @@ button, input, select, textarea {
   }
   .topbar-greeting { display: none; }
   .topbar-user-name { display: none; }
+  .topbar-logout-btn { display: none !important; }
 }
 
 /* Responsive grids */
