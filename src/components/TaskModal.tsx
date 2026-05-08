@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Task, TaskTag, User } from '../types';
-import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from './TaskCard';
+import { STATUS_LABELS, PRIORITY_LABELS, statusColor, priorityColor, formatDate } from '../utils/taskCardUtils';
 import { ALL_TAGS } from '../data/taskTags';
 import { isStuck, isWaitingTooLong, isPendingReviewTooLong, isReactionOverdue, lastActivityDate, hoursSince } from '../utils/taskAlerts';
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { TaskPriority, TaskTag, RecurrenceType } from '../types';
 import { ALL_TAGS } from '../data/taskTags';
 import { TASK_TEMPLATES } from '../data/taskTemplates';

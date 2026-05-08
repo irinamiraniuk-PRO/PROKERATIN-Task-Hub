@@ -1,10 +1,10 @@
 import type { User, Task } from '../types';
 
 export const USERS: User[] = [
-  { id: 'director', name: 'Ирина Миранюк', login: 'irina', password: '1111', role: 'director', color: '#BE185D' },
-  { id: 'user2', name: 'Ульяна', login: 'ulyana', password: '1111', role: 'employee', color: '#0891B2' },
-  { id: 'user3', name: 'Натали', login: 'natali', password: '1111', role: 'employee', color: '#EA580C' },
-  { id: 'user4', name: 'Марина', login: 'marina', password: '1111', role: 'employee', color: '#16A34A' },
+  { id: 'director', name: 'Ирина Миранюк', login: 'irina', role: 'director', color: '#BE185D' },
+  { id: 'user2', name: 'Ульяна', login: 'ulyana', role: 'employee', color: '#0891B2' },
+  { id: 'user3', name: 'Натали', login: 'natali', role: 'employee', color: '#EA580C' },
+  { id: 'user4', name: 'Марина', login: 'marina', role: 'employee', color: '#16A34A' },
 ];
 
 const now = new Date();
@@ -334,5 +334,4 @@ export const INITIAL_TASKS: Task[] = [
     ],
   },
 ];
-
 

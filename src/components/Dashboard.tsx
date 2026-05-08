@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Task } from '../types';
 import type { View } from './Sidebar';
 import TaskCard from './TaskCard';

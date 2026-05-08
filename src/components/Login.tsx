@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { User } from '../types';
 import BrandLogo from './BrandLogo';
 
@@ -288,7 +288,7 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
         padding: '3px 10px',
         borderRadius: 20,
       }}>
-        {isDirector ? '👑 Директор' : 'Сотрудник'}
+        {isDirector ? '👑 Директор' : user.role === 'guest' ? 'Гость' : 'Сотрудник'}
       </div>
     </div>
   );
@@ -307,15 +307,13 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const pendingCredentialsRef = useRef<{
+    login: string;
+    password: string;
+    profileHint: Pick<User, 'name' | 'role' | 'color'>;
+  } | null>(null);
 
   const color = selectedUser?.color ?? '#BE185D';
-
-  // Keep refs so the effect closure always sees the latest values without
-  // adding them to the dependency array (which would cancel timers on re-render).
-  const loginRef = useRef(login);
-  loginRef.current = login;
-  const enteringUserRef = useRef(enteringUser);
-  enteringUserRef.current = enteringUser;
 
   /* Kick off login after overlay fully plays */
   useEffect(() => {
@@ -326,14 +324,20 @@ export default function Login() {
     // have cleared a top-level t2 and prevented login from ever firing).
     const t1 = setTimeout(() => {
       setPhase('welcome-out');
-      setTimeout(() => {
-        const eu = enteringUserRef.current;
-        if (eu) loginRef.current(eu.login, eu.password);
+      setTimeout(async () => {
+        const pending = pendingCredentialsRef.current;
+        pendingCredentialsRef.current = null;
+        if (!pending) return;
+        const ok = await login(pending.login, pending.password, pending.profileHint);
+        if (!ok) {
+          setPhase('password');
+          setSubmitting(false);
+          setError('Не удалось выполнить вход. Проверьте данные и попробуйте ещё раз.');
+        }
       }, 450); // 450 ms after leave starts = 1550 ms total
     }, 1100);
     return () => clearTimeout(t1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, login]);
 
   function handleSelectUser(user: User) {
     setSelectedUser(user);
@@ -353,16 +357,17 @@ export default function Login() {
     e.preventDefault();
     if (!selectedUser) return;
 
-    // Verify credentials locally so we can show animation before committing
-    const matched = users.find(u => u.login === selectedUser.login && u.password === password);
-    if (!matched) {
-      setError('Неверный пароль. Попробуйте ещё раз.');
-      setSubmitting(false);
-      return;
-    }
-
     setSubmitting(true);
-    setEnteringUser(matched);
+    pendingCredentialsRef.current = {
+      login: selectedUser.login,
+      password,
+      profileHint: {
+        name: selectedUser.name,
+        role: selectedUser.role,
+        color: selectedUser.color,
+      },
+    };
+    setEnteringUser(selectedUser);
     setPhase('welcome-in');
   }
 
@@ -480,6 +485,19 @@ export default function Login() {
                   borderRadius: 20,
                 }}>
                   👑 Директор
+                </div>
+              )}
+              {selectedUser.role === 'guest' && (
+                <div style={{
+                  background: '#F3F4F6',
+                  color: '#374151',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.3px',
+                  padding: '3px 10px',
+                  borderRadius: 20,
+                }}>
+                  Гость
                 </div>
               )}
             </div>

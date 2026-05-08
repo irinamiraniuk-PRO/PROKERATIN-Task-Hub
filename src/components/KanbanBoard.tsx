@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Task, TaskStatus } from '../types';
 import TaskModal from './TaskModal';
-import { STATUS_LABELS, statusColor, priorityColor, isOverdue } from './TaskCard';
+import { STATUS_LABELS, statusColor, priorityColor, isOverdue } from '../utils/taskCardUtils';
 
 interface KanbanColumn {
   status: TaskStatus;

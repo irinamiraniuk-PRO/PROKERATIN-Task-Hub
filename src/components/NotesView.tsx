@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type React from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Note } from '../types';
 
 const MIN_NOTES_FOR_SEARCH = 4;

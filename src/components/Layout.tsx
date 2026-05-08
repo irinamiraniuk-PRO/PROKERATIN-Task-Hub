@@ -18,7 +18,7 @@ import KanbanBoard from './KanbanBoard';
 import KnowledgeBase from './KnowledgeBase';
 import OnboardingView from './OnboardingView';
 import NotesView from './NotesView';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 
 const VIEW_IDS: View[] = [
   'dashboard',

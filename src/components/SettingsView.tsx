@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import BrandLogo from './BrandLogo';
 import type { SyncStatus } from '../utils/syncAdapter';
 
@@ -25,12 +25,19 @@ export default function SettingsView() {
           <BrandLogo width={120} height={36} />
         </div>
         <div className="responsive-grid-2">
-          {[
-            { label: 'Имя', value: currentUser.name },
-            { label: 'Логин', value: currentUser.login },
-            { label: 'Роль', value: currentUser.role === 'director' ? 'Директор' : 'Сотрудник' },
-            { label: 'ID', value: currentUser.id },
-          ].map(f => (
+            {[
+              { label: 'Имя', value: currentUser.name },
+              { label: 'Логин', value: currentUser.login },
+              {
+                label: 'Роль',
+                value: currentUser.role === 'director'
+                  ? 'Директор'
+                  : currentUser.role === 'guest'
+                    ? 'Гость'
+                    : 'Сотрудник',
+              },
+              { label: 'ID', value: currentUser.id },
+            ].map(f => (
             <div key={f.label} style={{ background: '#FAFAF8', borderRadius: 8, padding: '10px 14px' }}>
               <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{f.label}</div>
               <div style={{ fontSize: 14, color: '#111', fontWeight: 500 }}>{f.value}</div>
@@ -79,7 +86,9 @@ export default function SettingsView() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>{u.name} {u.id === currentUser.id ? '(Вы)' : ''}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>@{u.login} • {u.role === 'director' ? 'Директор' : 'Сотрудник'}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>
+                    @{u.login} • {u.role === 'director' ? 'Директор' : u.role === 'guest' ? 'Гость' : 'Сотрудник'}
+                  </div>
                 </div>
               </div>
             );
@@ -95,7 +104,7 @@ export default function SettingsView() {
 
 /* ── Avatar upload section ───────────────────────────── */
 function AvatarSection({ color, initials, avatar, onSave }: {
-  color: string; initials: string; avatar?: string; onSave: (dataUrl: string) => void;
+  color: string; initials: string; avatar?: string; onSave: (dataUrl: string) => void | Promise<void>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | undefined>(avatar);
@@ -187,19 +196,19 @@ function AvatarSection({ color, initials, avatar, onSave }: {
 }
 
 /* ── Password change section ─────────────────────────── */
-function PasswordSection({ color, onSave }: { color: string; onSave: (current: string, next: string) => boolean }) {
+function PasswordSection({ color, onSave }: { color: string; onSave: (current: string, next: string) => Promise<boolean> }) {
   const [currentPwd, setCurrentPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (newPwd.length < 4) { setError('Новый пароль должен быть не менее 4 символов.'); return; }
     if (newPwd !== confirmPwd) { setError('Новый пароль и подтверждение не совпадают.'); return; }
-    const ok = onSave(currentPwd, newPwd);
+    const ok = await onSave(currentPwd, newPwd);
     if (!ok) { setError('Текущий пароль введён неверно.'); return; }
     setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
     setSuccess(true);

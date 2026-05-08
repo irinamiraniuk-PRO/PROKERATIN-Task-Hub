@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import type { Notification, NotificationType } from '../types';
 
 function notifIcon(type: NotificationType): string {

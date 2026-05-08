@@ -1,5 +1,5 @@
 
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import NotificationsPanel from './NotificationsPanel';
 import BrandLogo from './BrandLogo';
 

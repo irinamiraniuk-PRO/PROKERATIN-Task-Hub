@@ -1,4 +1,4 @@
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/useApp';
 import BrandLogo from './BrandLogo';
 
 export type View =
