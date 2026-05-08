@@ -8,6 +8,22 @@ import { isStuck, getSmartHints, type SmartHint } from '../utils/taskAlerts';
 
 const TZ = 'Europe/Minsk';
 
+// Status colour/label map — defined once outside the component to avoid per-render recreation
+const STATUS_META: Record<string, { col: string; label: string }> = {
+  new: { col: '#6366F1', label: 'Новая' },
+  accepted: { col: '#059669', label: 'Принята' },
+  in_progress: { col: '#1D4ED8', label: 'В работе' },
+  pending_director_review: { col: '#D97706', label: 'На проверке' },
+  returned_for_revision: { col: '#EF4444', label: 'На доработку' },
+  waiting_response: { col: '#F97316', label: 'Ждёт ответа' },
+  overdue: { col: '#B91C1C', label: 'Просрочена' },
+  transferred: { col: '#3B82F6', label: 'Передана' },
+  postponed: { col: '#9CA3AF', label: 'Отложена' },
+  blocked: { col: '#EF4444', label: 'Заблокирована' },
+  completed: { col: '#059669', label: 'Выполнена' },
+  closed: { col: '#6B7280', label: 'Закрыта' },
+};
+
 function toMinskDateStr(date: Date): string {
   return date.toLocaleDateString('en-CA', { timeZone: TZ });
 }
@@ -37,36 +53,6 @@ function isInCurrentWeek(iso: string, monday: Date): boolean {
   return dLocal >= monday && dLocal <= sunday;
 }
 
-function StatCard({ label, value, sub, color, emoji, highlight, onClick }: {
-  label: string; value: number | string; sub?: string; color: string; emoji?: string; highlight?: boolean; onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        background: highlight ? color : '#fff',
-        borderRadius: 10,
-        padding: '14px 16px',
-        border: highlight ? 'none' : '1px solid #EEECEA',
-        boxShadow: highlight ? `0 4px 16px ${color}35` : '0 1px 3px rgba(0,0,0,0.04)',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: onClick ? 'opacity 0.15s, transform 0.15s' : undefined,
-      }}
-      onMouseEnter={onClick ? e => { (e.currentTarget as HTMLDivElement).style.opacity = '0.85'; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'; } : undefined}
-      onMouseLeave={onClick ? e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; (e.currentTarget as HTMLDivElement).style.transform = ''; } : undefined}
-    >
-      <div style={{
-        fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px',
-        marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4,
-        color: highlight ? 'rgba(255,255,255,0.75)' : '#ADADAD',
-      }}>
-        {emoji && <span>{emoji}</span>}{label}
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: highlight ? '#fff' : color, lineHeight: 1, letterSpacing: '-0.5px' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, marginTop: 5, color: highlight ? 'rgba(255,255,255,0.65)' : '#C0BDB9' }}>{sub}</div>}
-    </div>
-  );
-}
 
 function SectionHeader({ emoji, title, count, color }: { emoji: string; title: string; count?: number; color?: string }) {
   return (
@@ -241,6 +227,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
   const { state } = useApp();
   const { tasks, currentUser, users } = state;
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'week' | 'incoming' | 'overdue'>('today');
 
   if (!currentUser) return null;
 
@@ -324,6 +311,11 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
   // Smart hints
   const smartHints = getSmartHints(tasks, users, currentUser.id, isDirector);
 
+  const color = currentUser.color ?? '#BE185D';
+  const incomingTasks = applySearch(tasks.filter(t =>
+    t.transferredTo === currentUser.id && t.status === 'transferred'
+  ));
+
   // Director extras
   const employees = users.filter(u => u.role === 'employee');
 
@@ -332,61 +324,111 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
   const timeLabel = now.toLocaleTimeString('ru-RU', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="anim-fade-in" style={{ padding: '22px 26px 32px', maxWidth: 1140 }}>
+    <div className="anim-fade-in" style={{ padding: '20px 22px 32px', maxWidth: 1140, background: '#F0EFF9', minHeight: '100%' }}>
 
-      {/* Welcome bar */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: '0 0 3px', fontSize: 20, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.5px' }}>
-          {firstName}, твой план на сегодня 🌟
-        </h1>
-        <div style={{ fontSize: 12.5, color: '#ADADAD', textTransform: 'capitalize', fontWeight: 400 }}>
-          Сегодня: {dayName}, {dateLabel}, Минск • {timeLabel}
+      {/* ── Welcome card ── */}
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: '14px 20px',
+        display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16,
+        boxShadow: '0 2px 16px rgba(100,60,200,0.07)', border: '1px solid #ECEAFF',
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+          background: `linear-gradient(135deg, ${color}, ${color}BB)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#fff', fontWeight: 700, fontSize: 18,
+          boxShadow: `0 4px 16px ${color}40`,
+        }}>
+          {currentUser.avatar
+            ? <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : firstName[0]?.toUpperCase()
+          }
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: '#ADADAD', fontWeight: 400 }}>Добро пожаловать</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {currentUser.name}{currentUser.role === 'director' ? ' ✦' : ''}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }} className="topbar-greeting">
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', textTransform: 'capitalize', letterSpacing: '-0.2px' }}>{dayName}</div>
+          <div style={{ fontSize: 11, color: '#ADADAD', marginTop: 1 }}>{dateLabel}</div>
+        </div>
+        <div style={{
+          width: 38, height: 38, borderRadius: 10, flexShrink: 0, position: 'relative',
+          background: `${color}10`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 17 }}>🔔</span>
+          {(overdueTasks.length + pendingReviewTasks.length) > 0 && (
+            <span style={{
+              position: 'absolute', top: 6, right: 6, width: 8, height: 8,
+              background: '#EF4444', borderRadius: '50%', border: '1.5px solid #fff',
+            }} />
+          )}
         </div>
       </div>
 
-      {/* Alert banners */}
-      {(overdueTasks.length > 0 || pendingReviewTasks.length > 0 || waitingTasks.length > 0) && (
+      {/* ── Overview stats ── */}
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: '16px 20px', marginBottom: 16,
+        boxShadow: '0 2px 16px rgba(100,60,200,0.07)', border: '1px solid #ECEAFF',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>Обзор</span>
+          <span style={{ fontSize: 11, color: '#6B6B6B', background: `${color}10`, padding: '4px 12px', borderRadius: 20, fontWeight: 500 }}>{timeLabel}</span>
+        </div>
+        <div className="dashboard-stats-grid">
+          {([
+            { label: 'Сегодня', value: todayTasks.length, sub: 'запланировано', accent: color, nav: 'my-tasks' as View, den: Math.max(dayTotal, 1) },
+            { label: 'Выполнено', value: completedToday, sub: 'сегодня', accent: '#059669', nav: 'my-tasks' as View, den: Math.max(dayTotal, 1) },
+            { label: 'В работе', value: inProgress, sub: 'активных', accent: '#1D4ED8', nav: 'my-tasks' as View, den: Math.max(activeTasks.length, 1) },
+            { label: 'На неделе', value: weekTasks.length, sub: 'задач', accent: '#6366F1', nav: 'week-planner' as View, den: Math.max(weekTasks.length + weekDoneCount, 1) },
+          ]).map(s => (
+            <div
+              key={s.label}
+              onClick={() => onViewChange?.(s.nav)}
+              style={{ background: `${s.accent}0F`, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', transition: 'transform 0.15s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ''; }}
+            >
+              <div style={{ fontSize: 28, fontWeight: 800, color: s.accent, letterSpacing: '-1px', lineHeight: 1.1 }}>{s.value}</div>
+              <div style={{ fontSize: 11.5, color: '#3A3A3A', marginTop: 3, fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: '#ADADAD', marginBottom: 8 }}>{s.sub}</div>
+              <div style={{ height: 3, background: `${s.accent}20`, borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 3, background: s.accent,
+                  width: `${Math.min(100, Math.round((s.value / s.den) * 100))}%`,
+                  transition: 'width 0.5s',
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Alert banners ── */}
+      {(overdueTasks.length > 0 || pendingReviewTasks.length > 0 || waitingTasks.length > 0 || stuckTasks.length > 0) && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           {overdueTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.('my-tasks')}
-              style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
+            <div onClick={() => onViewChange?.('my-tasks')} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
               <span style={{ fontSize: 14 }}>⚠️</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#EF4444' }}>Просрочено: {overdueTasks.length}</span>
             </div>
           )}
           {pendingReviewTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.(isDirector ? 'director-review' : 'pending-director')}
-              style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
+            <div onClick={() => onViewChange?.(isDirector ? 'director-review' : 'pending-director')} style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
               <span style={{ fontSize: 14 }}>🔍</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#B45309' }}>На проверке: {pendingReviewTasks.length}</span>
             </div>
           )}
           {waitingTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.('waiting')}
-              style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
+            <div onClick={() => onViewChange?.('waiting')} style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
               <span style={{ fontSize: 14 }}>⏳</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#C2410C' }}>Ждут ответа: {waitingTasks.length}</span>
             </div>
           )}
           {stuckTasks.length > 0 && (
-            <div
-              onClick={() => onViewChange?.('my-tasks')}
-              style={{ background: '#F7F7F5', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }}
-              onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-            >
+            <div onClick={() => onViewChange?.('my-tasks')} style={{ background: '#F7F7F5', border: '1px solid #EEECEA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, cursor: onViewChange ? 'pointer' : 'default', transition: 'opacity 0.15s' }} onMouseEnter={e => { if (onViewChange) (e.currentTarget as HTMLDivElement).style.opacity = '0.75'; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}>
               <span style={{ fontSize: 14 }}>😴</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#6B7280' }}>Зависли: {stuckTasks.length}</span>
             </div>
@@ -394,7 +436,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
         </div>
       )}
 
-      {/* Smart hints */}
+      {/* ── Smart hints ── */}
       <SmartHintsPanel
         hints={smartHints}
         onTaskClick={taskId => {
@@ -403,152 +445,156 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
         }}
       />
 
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 9, marginBottom: 20 }}>
-        <StatCard emoji="📅" label="Сегодня" value={todayTasks.length} sub="запланировано" color="#BE185D" highlight={todayTasks.length > 0} onClick={todayTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-        <StatCard emoji="✅" label="Выполнено" value={completedToday} sub="сегодня" color="#059669" />
-        <StatCard emoji="📊" label="% дня" value={`${dayPct}%`} sub="выполнения" color={dayPct >= 70 ? '#059669' : dayPct >= 40 ? '#D97706' : '#6366F1'} />
-        <StatCard emoji="▶️" label="В работе" value={inProgress} sub="активных" color="#1D4ED8" onClick={inProgress > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-        <StatCard emoji="⏳" label="Жду ответ" value={waitingTasks.length} sub="ожидание" color="#F97316" onClick={waitingTasks.length > 0 ? () => onViewChange?.('waiting') : undefined} />
-        <StatCard emoji="🔍" label="На проверке" value={pendingReviewTasks.length} sub="у директора" color="#D97706" onClick={pendingReviewTasks.length > 0 ? () => onViewChange?.(isDirector ? 'director-review' : 'pending-director') : undefined} />
-        <StatCard emoji="⚠️" label="Просрочено" value={overdueTasks.length} sub="нужно действие" color="#B91C1C" highlight={overdueTasks.length > 0} onClick={overdueTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-        <StatCard emoji="😴" label="Зависли" value={stuckTasks.length} sub="без движения" color="#6B7280" highlight={stuckTasks.length > 0} onClick={stuckTasks.length > 0 ? () => onViewChange?.('my-tasks') : undefined} />
-      </div>
+      {/* ── Main 2-col: task list (left) + calendar/summary (right) ── */}
+      <div className="dashboard-main-grid">
 
-      {/* Calendar + efficiency row */}
-      <div className="responsive-grid-3" style={{ marginBottom: 20 }}>
-
-        {/* Efficiency panel */}
-        <div style={{ background: '#fff', borderRadius: 10, padding: '16px 18px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <SectionHeader emoji="📈" title="Эффективность" />
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <div style={{ fontSize: 12, color: '#6B6B6B' }}>За неделю</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: weekEfficiency >= 70 ? '#059669' : weekEfficiency >= 40 ? '#D97706' : '#EF4444', letterSpacing: '-0.3px' }}>{weekEfficiency}%</div>
-            </div>
-            <div style={{ height: 6, background: '#F1F0EE', borderRadius: 4, overflow: 'hidden', marginBottom: 4 }}>
-              <div style={{ height: '100%', borderRadius: 4, width: `${weekEfficiency}%`, background: weekEfficiency >= 70 ? '#10B981' : weekEfficiency >= 40 ? '#F59E0B' : '#EF4444', transition: 'width 0.4s' }} />
-            </div>
-            <div style={{ fontSize: 11, color: '#ADADAD' }}>{weekDoneCount} из {weekTasks.length + weekDoneCount} задач</div>
-          </div>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-              <div style={{ fontSize: 12, color: '#6B6B6B' }}>Общая</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: totalEff >= 70 ? '#059669' : totalEff >= 40 ? '#D97706' : '#EF4444', letterSpacing: '-0.3px' }}>{totalEff}%</div>
-            </div>
-            <div style={{ height: 6, background: '#F1F0EE', borderRadius: 4, overflow: 'hidden', marginBottom: 4 }}>
-              <div style={{ height: '100%', borderRadius: 4, width: `${totalEff}%`, background: totalEff >= 70 ? '#10B981' : totalEff >= 40 ? '#F59E0B' : '#EF4444', transition: 'width 0.4s' }} />
-            </div>
-            <div style={{ fontSize: 11, color: '#ADADAD' }}>{totalCompleted} из {myTasks.length} всего</div>
+        {/* LEFT: Tab filter + task list */}
+        <div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {([
+              { id: 'today' as const, label: 'Сегодня', count: todayTasks.length },
+              { id: 'tomorrow' as const, label: 'Завтра', count: tomorrowTasks.length },
+              { id: 'week' as const, label: 'На неделе', count: weekTasks.length },
+              { id: 'incoming' as const, label: 'Входящие', count: incomingTasks.length },
+              { id: 'overdue' as const, label: 'Просрочено', count: overdueTasks.length },
+            ]).map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    padding: '7px 16px', borderRadius: 24, border: 'none', cursor: 'pointer',
+                    fontSize: 12.5, fontFamily: 'var(--font)',
+                    fontWeight: isActive ? 600 : 400,
+                    background: isActive ? color : '#fff',
+                    color: isActive ? '#fff' : '#6B6B6B',
+                    boxShadow: isActive ? `0 4px 14px ${color}35` : '0 1px 4px rgba(0,0,0,0.08)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {tab.label}{tab.count > 0 ? ` (${tab.count})` : ''}
+                </button>
+              );
+            })}
           </div>
 
-          <div style={{ borderTop: '1px solid #F1F0EE', marginTop: 12, paddingTop: 12 }}>
-            <SectionHeader emoji="📊" title="Сводка статусов" />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {[
-                { label: 'В работе', value: inProgress, color: '#1D4ED8', bg: '#EFF6FF' },
-                { label: 'Жду ответа', value: waitingTasks.length, color: '#F97316', bg: '#FFF7ED' },
-                { label: 'На проверке', value: pendingReviewTasks.length, color: '#D97706', bg: '#FFFBEB' },
-                { label: 'Просрочено', value: overdueTasks.length, color: '#EF4444', bg: '#FEF2F2' },
-                { label: 'Выполнено', value: totalCompleted, color: '#059669', bg: '#ECFDF5' },
-              ].map(s => (
-                <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderRadius: 6, background: '#F7F7F5' }}>
-                  <div style={{ fontSize: 12, color: '#6B6B6B' }}>{s.label}</div>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, padding: '1px 7px', borderRadius: 5, background: s.bg, color: s.color }}>{s.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TaskSection
+            emoji={
+              activeTab === 'today' ? '🗓️'
+              : activeTab === 'tomorrow' ? '⏭️'
+              : activeTab === 'week' ? '📆'
+              : activeTab === 'incoming' ? '↓'
+              : '🔥'
+            }
+            title={
+              activeTab === 'today' ? 'Задачи на сегодня'
+              : activeTab === 'tomorrow' ? 'Задачи на завтра'
+              : activeTab === 'week' ? 'На этой неделе'
+              : activeTab === 'incoming' ? 'Входящие задачи'
+              : 'Просроченные задачи'
+            }
+            tasks={
+              activeTab === 'today' ? todayTasks
+              : activeTab === 'tomorrow' ? tomorrowTasks
+              : activeTab === 'week' ? weekTasks
+              : activeTab === 'incoming' ? incomingTasks
+              : overdueTasks
+            }
+            onSelect={setSelectedTask}
+            emptyIcon={
+              activeTab === 'today' ? '☀️'
+              : activeTab === 'tomorrow' ? '🌅'
+              : activeTab === 'week' ? '🗂️'
+              : activeTab === 'incoming' ? '📨'
+              : '🎉'
+            }
+            emptyText={
+              activeTab === 'today' ? 'Нет задач на сегодня'
+              : activeTab === 'tomorrow' ? 'Нет задач на завтра'
+              : activeTab === 'week' ? 'Нет задач на этой неделе'
+              : activeTab === 'incoming' ? 'Нет входящих задач'
+              : 'Нет просроченных задач!'
+            }
+            accentColor={
+              activeTab === 'overdue' ? '#EF4444'
+              : activeTab === 'incoming' ? '#3B82F6'
+              : color
+            }
+            maxItems={8}
+          />
         </div>
 
-        {/* Today tasks */}
-        <TaskSection
-          emoji="🗓️"
-          title="Задачи на сегодня"
-          tasks={todayTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="☀️"
-          emptyText="Нет задач на сегодня"
-          accentColor="#BE185D"
-          maxItems={5}
-        />
+        {/* RIGHT: Calendar + today summary + efficiency */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <MiniCalendar today={now} />
 
-        {/* Mini calendar */}
-        <MiniCalendar today={now} />
+          {/* Today's tasks by status */}
+          <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1px solid #ECEAFF', boxShadow: '0 2px 10px rgba(100,60,200,0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A' }}>📋 Задачи сегодня</span>
+              {todayTasks.length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: `${color}14`, color }}>{todayTasks.length}</span>
+              )}
+            </div>
+            {todayTasks.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#C0BDB9', textAlign: 'center', padding: '10px 0' }}>Нет задач на сегодня ☀️</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {todayTasks.slice(0, 5).map(t => {
+                  const meta = STATUS_META[t.status] ?? { col: '#ADADAD', label: t.status };
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setSelectedTask(t)}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '6px 7px', borderRadius: 8, transition: 'background 0.12s' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = `${color}0A`; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                    >
+                      <div style={{ width: 3, borderRadius: 2, background: meta.col, flexShrink: 0, alignSelf: 'stretch', minHeight: 30 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: '#222', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                        <div style={{ fontSize: 10, color: meta.col, fontWeight: 600, marginTop: 1 }}>{meta.label}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {todayTasks.length > 5 && (
+                  <div onClick={() => onViewChange?.('my-tasks')} style={{ fontSize: 11.5, color, textAlign: 'center', padding: '5px', fontWeight: 600, cursor: 'pointer', borderTop: '1px solid #F1F0EE', marginTop: 2 }}>
+                    ещё {todayTasks.length - 5} задач →
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Efficiency */}
+          <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1px solid #ECEAFF', boxShadow: '0 2px 10px rgba(100,60,200,0.06)' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A', marginBottom: 10 }}>📈 Эффективность</div>
+            {[
+              { label: 'Сегодня', pct: dayPct, done: completedToday, total: dayTotal },
+              { label: 'За неделю', pct: weekEfficiency, done: weekDoneCount, total: weekTasks.length + weekDoneCount },
+              { label: 'Общая', pct: totalEff, done: totalCompleted, total: myTasks.length },
+            ].map(e => (
+              <div key={e.label} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 11.5, color: '#6B6B6B' }}>{e.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: e.pct >= 70 ? '#10B981' : e.pct >= 40 ? '#F59E0B' : '#EF4444' }}>{e.pct}%</span>
+                </div>
+                <div style={{ height: 5, background: '#F1F0EE', borderRadius: 4, overflow: 'hidden', marginBottom: 3 }}>
+                  <div style={{ height: '100%', borderRadius: 4, width: `${e.pct}%`, background: e.pct >= 70 ? '#10B981' : e.pct >= 40 ? '#F59E0B' : '#EF4444', transition: 'width 0.5s' }} />
+                </div>
+                <div style={{ fontSize: 10, color: '#ADADAD' }}>{e.done} из {e.total} задач</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Tomorrow + Week row */}
-      <div className="responsive-grid-2" style={{ marginBottom: 20 }}>
-        <TaskSection
-          emoji="⏭️"
-          title="Задачи на завтра"
-          tasks={tomorrowTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="🌅"
-          emptyText="Нет задач на завтра"
-          accentColor="#6366F1"
-          maxItems={5}
-        />
-        <TaskSection
-          emoji="📆"
-          title="Задачи на неделю"
-          tasks={weekTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="🗂️"
-          emptyText="Нет задач на этой неделе"
-          accentColor="#1D4ED8"
-          maxItems={5}
-        />
-      </div>
-
-      {/* Overdue + Pending review + Waiting + Stuck row */}
-      <div className="responsive-grid-4" style={{ marginBottom: 20 }}>
-        <TaskSection
-          emoji="🔥"
-          title="Просроченные"
-          tasks={overdueTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="🎉"
-          emptyText="Нет просроченных задач"
-          accentColor="#B91C1C"
-          maxItems={4}
-        />
-        <TaskSection
-          emoji="🔍"
-          title="На проверке у директора"
-          tasks={pendingReviewTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="✅"
-          emptyText="Нет задач на проверке"
-          accentColor="#D97706"
-          maxItems={4}
-        />
-        <TaskSection
-          emoji="⏳"
-          title="Ждут ответа"
-          tasks={waitingTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="📨"
-          emptyText="Нет задач, ожидающих ответа"
-          accentColor="#F97316"
-          maxItems={4}
-        />
-        <TaskSection
-          emoji="😴"
-          title="Зависшие задачи"
-          tasks={stuckTasks}
-          onSelect={setSelectedTask}
-          emptyIcon="✓"
-          emptyText="Нет зависших задач"
-          accentColor="#6B7280"
-          maxItems={4}
-        />
-      </div>
-
-      {/* Director extras */}
+      {/* ── Director extras ── */}
       {isDirector && (
-        <div style={{ marginTop: 8 }}>
-          <h2 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-0.2px' }}>◈ Команда</h2>
+        <div style={{ marginTop: 20 }}>
+          <h2 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.2px' }}>◈ Команда</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
             {employees.map(emp => {
               const empTasks = tasks.filter(t => t.assignedTo === emp.id);
@@ -562,20 +608,17 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
               return (
                 <div key={emp.id} style={{ background: '#fff', borderRadius: 10, padding: '13px 15px', border: '1px solid #EEECEA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <div style={{
-                      width: 30, height: 30, borderRadius: '50%',
-                      background: `linear-gradient(135deg, ${empColor}, ${empColor}AA)`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0,
-                    }}>
-                      {emp.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', background: `linear-gradient(135deg, ${empColor}, ${empColor}AA)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
+                      {emp.avatar
+                        ? <img src={emp.avatar} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : emp.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+                      }
                     </div>
                     <div>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A1A', letterSpacing: '-0.1px' }}>{emp.name}</div>
                       <div style={{ fontSize: 10, color: '#ADADAD' }}>{empActive.length} активных задач</div>
                     </div>
                   </div>
-                  {/* Load bar */}
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                       <span style={{ fontSize: 10, color: '#ADADAD' }}>Загрузка</span>
@@ -585,7 +628,6 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
                       <div style={{ height: '100%', borderRadius: 4, width: `${empEff}%`, background: empEff >= 70 ? '#10B981' : empEff >= 40 ? '#F59E0B' : '#6B7280', transition: 'width 0.4s' }} />
                     </div>
                   </div>
-                  {/* Badges */}
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {empOverdue > 0 && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: '#FEF2F2', color: '#EF4444' }}>⚠️ {empOverdue} просроч.</span>}
                     {empPending > 0 && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: '#FFFBEB', color: '#B45309' }}>🔍 {empPending} проверка</span>}

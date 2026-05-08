@@ -1,4 +1,5 @@
 import { useApp } from '../context/AppContext';
+import BrandLogo from './BrandLogo';
 
 export type View =
   | 'dashboard'
@@ -123,29 +124,7 @@ export default function Sidebar({ currentView, onViewChange, onCreateTask }: Sid
     }}>
       {/* Logo */}
       <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid #EEECEA' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 34,
-            height: 34,
-            borderRadius: 9,
-            background: 'linear-gradient(135deg, #BE185D, #DB2777)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 16,
-            fontWeight: 900,
-            color: '#fff',
-            flexShrink: 0,
-            boxShadow: '0 3px 10px rgba(190,24,93,0.35)',
-            letterSpacing: '-0.5px',
-          }}>
-            P
-          </div>
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.3px', lineHeight: 1.1 }}>PROKERATIN</div>
-            <div style={{ fontSize: 9.5, color: '#ADADAD', letterSpacing: '0.3px', marginTop: 1, fontWeight: 400 }}>Task Hub</div>
-          </div>
-        </div>
+        <BrandLogo width={140} height={42} />
       </div>
 
       {/* Create button */}

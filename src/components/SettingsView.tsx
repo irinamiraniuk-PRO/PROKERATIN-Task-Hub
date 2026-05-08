@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import BrandLogo from './BrandLogo';
 
 export default function SettingsView() {
   const { state, updateUserPassword, updateUserAvatar } = useApp();
@@ -10,7 +11,7 @@ export default function SettingsView() {
   const initials = currentUser.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ padding: '28px 28px', maxWidth: 700 }}>
+    <div style={{ padding: '28px clamp(12px, 4vw, 28px)', maxWidth: 700, width: '100%' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#111' }}>⚙️ Настройки</h1>
         <div style={{ fontSize: 13, color: '#888' }}>Управление учётной записью и параметрами приложения</div>
@@ -18,8 +19,11 @@ export default function SettingsView() {
 
       {/* Profile */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 16 }}>👤 Профиль</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>👤 Профиль</div>
+          <BrandLogo width={120} height={36} />
+        </div>
+        <div className="responsive-grid-2">
           {[
             { label: 'Имя', value: currentUser.name },
             { label: 'Логин', value: currentUser.login },
@@ -43,7 +47,7 @@ export default function SettingsView() {
       {/* App settings info */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 16 }}>🌍 Часовой пояс и локаль</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="responsive-grid-2">
           {[
             { label: 'Часовой пояс', value: 'Europe/Minsk (UTC+3)' },
             { label: 'Язык', value: 'Русский' },
