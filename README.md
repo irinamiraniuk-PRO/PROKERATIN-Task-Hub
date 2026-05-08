@@ -1,5 +1,14 @@
 # React + TypeScript + Vite
 
+## Supabase setup (required for sync)
+
+1. Copy `.env.example` to `.env` and fill:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+2. Run SQL from `supabase/schema.sql` in your Supabase project.
+3. Start the app. Without these variables the UI will show:
+   `Синхронизация недоступна: не подключена база данных Supabase`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -9,11 +9,11 @@ import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
 import { createStateSyncAdapter, type SyncStatus } from '../utils/syncAdapter';
 
-const LEGACY_LS_KEYS = ['prokeratin_state_v8', 'prokeratin_state_v7', 'prokeratin_state_v6'];
+const SESSION_USER_KEY = 'prokeratin_session_user_v1';
 const STATE_EXPORT_VERSION = 1;
 const stateSyncAdapter = createStateSyncAdapter();
 
-type PersistedStateData = Partial<AppState> & { currentUserId?: string | null };
+type PersistedStateData = Omit<Partial<AppState>, 'currentUser'>;
 interface PersistedStatePayload {
   version: number;
   exportedAt: string;
@@ -378,10 +378,30 @@ const initialState: AppState = {
   dashboardTodos: {},
 };
 
-function toAppState(parsed: Partial<AppState> & { currentUserId?: string | null }): AppState {
+function getSessionUserId(): string | null {
+  try {
+    return localStorage.getItem(SESSION_USER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setSessionUserId(userId: string | null) {
+  try {
+    if (userId) {
+      localStorage.setItem(SESSION_USER_KEY, userId);
+    } else {
+      localStorage.removeItem(SESSION_USER_KEY);
+    }
+  } catch {
+    // ignore storage write errors
+  }
+}
+
+function toAppState(parsed: PersistedStateData, sessionUserId = getSessionUserId()): AppState {
   const users = (parsed.users ?? USERS) as User[];
-  const savedUser = parsed.currentUserId
-    ? (users.find(u => u.id === parsed.currentUserId) ?? null)
+  const savedUser = sessionUserId
+    ? (users.find(u => u.id === sessionUserId) ?? null)
     : null;
   return {
     ...initialState,
@@ -404,10 +424,9 @@ function normalizePersistedInput(parsed: unknown): PersistedStateData {
 }
 
 function toPersistedStateData(state: AppState): PersistedStateData {
+  const { currentUser: _currentUser, ...persisted } = state;
   return {
-    ...state,
-    currentUserId: state.currentUser?.id,
-    currentUser: undefined,
+    ...persisted,
   };
 }
 
@@ -432,18 +451,6 @@ function loadState(): AppState {
       const normalized = normalizePersistedInput(parsed);
       return toAppState(normalized);
     } catch { /* ignore */ }
-  }
-
-  if (stateSyncAdapter.status.mode !== 'backend') {
-    for (const key of LEGACY_LS_KEYS) {
-      try {
-        const raw = localStorage.getItem(key);
-        if (!raw) continue;
-        const parsed = JSON.parse(raw);
-        const normalized = normalizePersistedInput(parsed);
-        return toAppState(normalized);
-      } catch { /* ignore */ }
-    }
   }
   return initialState;
 }
@@ -603,11 +610,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   function login(loginVal: string, password: string): boolean {
     const user = state.users.find(u => u.login === loginVal && u.password === password);
-    if (user) { dispatch({ type: 'LOGIN', user }); return true; }
+    if (user) {
+      setSessionUserId(user.id);
+      dispatch({ type: 'LOGIN', user });
+      return true;
+    }
     return false;
   }
 
-  function logout() { dispatch({ type: 'LOGOUT' }); }
+  function logout() {
+    setSessionUserId(null);
+    dispatch({ type: 'LOGOUT' });
+  }
 
   function createTask(data: {
     title: string; description: string; assignedTo: string;
