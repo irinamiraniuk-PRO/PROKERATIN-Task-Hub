@@ -309,3 +309,24 @@ button, input, select, textarea {
 .main-scroll-area > * {
   max-width: 100%;
 }
+
+/* Dashboard main 2-col layout */
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .dashboard-main-grid { grid-template-columns: 1fr; }
+}
+
+/* Dashboard 4-stat overview grid */
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+@media (max-width: 900px) {
+  .dashboard-stats-grid { grid-template-columns: 1fr 1fr; }
+}
