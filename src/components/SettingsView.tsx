@@ -395,8 +395,8 @@ function SyncSection({ color, exportState, importState, syncStatus }: {
     border: 'none',
   };
   const dataSourceLabel = syncStatus.mode === 'backend'
-    ? 'общий backend'
-    : 'localStorage (только это устройство)';
+    ? 'Supabase (общая база данных)'
+    : 'Supabase не подключён';
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: 16 }}>
@@ -410,7 +410,7 @@ function SyncSection({ color, exportState, importState, syncStatus }: {
       </div>
       {!syncStatus.supportsCrossDeviceSync && (
         <div style={{ marginBottom: 14, background: '#FEF3C7', color: '#92400E', borderRadius: 10, border: '1px solid #FDE68A', padding: '10px 12px', fontSize: 12.5, lineHeight: 1.5 }}>
-          ⚠️ {syncStatus.warning} До подключения backend используйте только ручной перенос данных (экспорт/импорт).
+          ⚠️ {syncStatus.warning}
         </div>
       )}
       <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>

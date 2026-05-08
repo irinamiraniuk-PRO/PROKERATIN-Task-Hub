@@ -62,7 +62,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
 }
 
-const MAX_FILE_BYTES = 300 * 1024; // 300 KB limit for localStorage safety
+const MAX_FILE_BYTES = 300 * 1024; // 300 KB limit to keep sync payload lightweight
 
 export default function TaskModal({ task, onClose }: TaskModalProps) {
   const {

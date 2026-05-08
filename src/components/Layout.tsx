@@ -44,7 +44,7 @@ function isView(value: unknown): value is View {
 }
 
 export default function Layout() {
-  const { state } = useApp();
+  const { state, syncStatus } = useApp();
   const [view, setView] = useState<View>(() => {
     const appView = window.history.state?.appView;
     return isView(appView) ? appView : 'dashboard';
@@ -140,6 +140,11 @@ export default function Layout() {
           onToggleNotifications={() => setShowNotifications(v => !v)}
           onCloseNotifications={() => setShowNotifications(false)}
         />
+        {!syncStatus.supportsCrossDeviceSync && (
+          <div style={{ padding: '10px 16px', background: '#FEF3C7', color: '#92400E', borderBottom: '1px solid #FDE68A', fontSize: 13, fontWeight: 600 }}>
+            {syncStatus.warning}
+          </div>
+        )}
         <main className="main-scroll-area" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {renderView()}
         </main>
