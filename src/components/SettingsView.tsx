@@ -11,7 +11,7 @@ export default function SettingsView() {
   const initials = currentUser.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ padding: '28px 28px', maxWidth: 700, width: '100%' }}>
+    <div style={{ padding: '28px clamp(12px, 4vw, 28px)', maxWidth: 700, width: '100%' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#111' }}>⚙️ Настройки</h1>
         <div style={{ fontSize: 13, color: '#888' }}>Управление учётной записью и параметрами приложения</div>

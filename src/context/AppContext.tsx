@@ -359,25 +359,29 @@ const initialState: AppState = {
   userKBArticles: [],
 };
 
+function toAppState(parsed: Partial<AppState> & { currentUserId?: string }): AppState {
+  const users = (parsed.users ?? USERS) as User[];
+  const savedUser = parsed.currentUserId
+    ? (users.find(u => u.id === parsed.currentUserId) ?? null)
+    : null;
+  return {
+    ...initialState,
+    ...parsed,
+    currentUser: savedUser,
+    notifications: parsed.notifications ?? [],
+    projects: parsed.projects ?? INITIAL_PROJECTS,
+    notes: parsed.notes ?? [],
+    userKBArticles: parsed.userKBArticles ?? [],
+  };
+}
+
 function loadState(): AppState {
   for (const key of [LS_KEY, ...LEGACY_LS_KEYS]) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       const parsed = JSON.parse(raw) as Partial<AppState> & { currentUserId?: string };
-      const users = (parsed.users ?? USERS) as User[];
-      const savedUser = parsed.currentUserId
-        ? (users.find(u => u.id === parsed.currentUserId) ?? null)
-        : null;
-      return {
-        ...initialState,
-        ...parsed,
-        currentUser: savedUser,
-        notifications: parsed.notifications ?? [],
-        projects: parsed.projects ?? INITIAL_PROJECTS,
-        notes: parsed.notes ?? [],
-        userKBArticles: parsed.userKBArticles ?? [],
-      };
+      return toAppState(parsed);
     } catch { /* ignore */ }
   }
   return initialState;
@@ -478,22 +482,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!event.newValue) return;
       try {
         const parsed = JSON.parse(event.newValue) as Partial<AppState> & { currentUserId?: string };
-        const users = (parsed.users ?? USERS) as User[];
-        const savedUser = parsed.currentUserId
-          ? (users.find(u => u.id === parsed.currentUserId) ?? null)
-          : null;
-        dispatch({
-          type: 'HYDRATE_STATE',
-          state: {
-            ...initialState,
-            ...parsed,
-            currentUser: savedUser,
-            notifications: parsed.notifications ?? [],
-            projects: parsed.projects ?? INITIAL_PROJECTS,
-            notes: parsed.notes ?? [],
-            userKBArticles: parsed.userKBArticles ?? [],
-          },
-        });
+        dispatch({ type: 'HYDRATE_STATE', state: toAppState(parsed) });
       } catch { /* ignore */ }
     }
 

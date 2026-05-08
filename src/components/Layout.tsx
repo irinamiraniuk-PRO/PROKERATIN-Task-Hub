@@ -123,7 +123,7 @@ export default function Layout() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100dvh', background: '#F7F7F5', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100dvh', width: '100%', background: '#F7F7F5', overflow: 'hidden' }}>
       <div className="sidebar-wrapper">
         <Sidebar
           currentView={view}

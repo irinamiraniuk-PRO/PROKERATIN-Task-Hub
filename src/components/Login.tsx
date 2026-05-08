@@ -377,6 +377,8 @@ export default function Login() {
 
       <div style={{
         minHeight: '100vh',
+        width: '100%',
+        overflowX: 'hidden',
         background: 'linear-gradient(145deg, #FBF7FF 0%, #FEFEFE 50%, #F5F8FF 100%)',
         display: 'flex',
         flexDirection: 'column',
