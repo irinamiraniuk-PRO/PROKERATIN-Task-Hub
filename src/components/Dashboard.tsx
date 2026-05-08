@@ -8,6 +8,22 @@ import { isStuck, getSmartHints, type SmartHint } from '../utils/taskAlerts';
 
 const TZ = 'Europe/Minsk';
 
+// Status colour/label map — defined once outside the component to avoid per-render recreation
+const STATUS_META: Record<string, { col: string; label: string }> = {
+  new: { col: '#6366F1', label: 'Новая' },
+  accepted: { col: '#059669', label: 'Принята' },
+  in_progress: { col: '#1D4ED8', label: 'В работе' },
+  pending_director_review: { col: '#D97706', label: 'На проверке' },
+  returned_for_revision: { col: '#EF4444', label: 'На доработку' },
+  waiting_response: { col: '#F97316', label: 'Ждёт ответа' },
+  overdue: { col: '#B91C1C', label: 'Просрочена' },
+  transferred: { col: '#3B82F6', label: 'Передана' },
+  postponed: { col: '#9CA3AF', label: 'Отложена' },
+  blocked: { col: '#EF4444', label: 'Заблокирована' },
+  completed: { col: '#059669', label: 'Выполнена' },
+  closed: { col: '#6B7280', label: 'Закрыта' },
+};
+
 function toMinskDateStr(date: Date): string {
   return date.toLocaleDateString('en-CA', { timeZone: TZ });
 }
@@ -363,10 +379,10 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
         </div>
         <div className="dashboard-stats-grid">
           {([
-            { label: 'Сегодня', value: todayTasks.length, sub: 'запланировано', accent: color, nav: 'my-tasks' as View },
-            { label: 'Выполнено', value: completedToday, sub: 'сегодня', accent: '#059669', nav: 'my-tasks' as View },
-            { label: 'В работе', value: inProgress, sub: 'активных', accent: '#1D4ED8', nav: 'my-tasks' as View },
-            { label: 'На неделе', value: weekTasks.length, sub: 'задач', accent: '#6366F1', nav: 'week-planner' as View },
+            { label: 'Сегодня', value: todayTasks.length, sub: 'запланировано', accent: color, nav: 'my-tasks' as View, den: Math.max(dayTotal, 1) },
+            { label: 'Выполнено', value: completedToday, sub: 'сегодня', accent: '#059669', nav: 'my-tasks' as View, den: Math.max(dayTotal, 1) },
+            { label: 'В работе', value: inProgress, sub: 'активных', accent: '#1D4ED8', nav: 'my-tasks' as View, den: Math.max(activeTasks.length, 1) },
+            { label: 'На неделе', value: weekTasks.length, sub: 'задач', accent: '#6366F1', nav: 'week-planner' as View, den: Math.max(weekTasks.length + weekDoneCount, 1) },
           ]).map(s => (
             <div
               key={s.label}
@@ -381,7 +397,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
               <div style={{ height: 3, background: `${s.accent}20`, borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', borderRadius: 3, background: s.accent,
-                  width: `${myTasks.length > 0 ? Math.min(100, Math.round((s.value / myTasks.length) * 100)) : 0}%`,
+                  width: `${Math.min(100, Math.round((s.value / s.den) * 100))}%`,
                   transition: 'width 0.5s',
                 }} />
               </div>
@@ -526,21 +542,7 @@ export default function Dashboard({ searchQuery, onViewChange }: { searchQuery: 
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {todayTasks.slice(0, 5).map(t => {
-                  const sMeta: Record<string, { col: string; label: string }> = {
-                    new: { col: '#6366F1', label: 'Новая' },
-                    accepted: { col: '#059669', label: 'Принята' },
-                    in_progress: { col: '#1D4ED8', label: 'В работе' },
-                    pending_director_review: { col: '#D97706', label: 'На проверке' },
-                    returned_for_revision: { col: '#EF4444', label: 'На доработку' },
-                    waiting_response: { col: '#F97316', label: 'Ждёт ответа' },
-                    overdue: { col: '#B91C1C', label: 'Просрочена' },
-                    transferred: { col: '#3B82F6', label: 'Передана' },
-                    postponed: { col: '#9CA3AF', label: 'Отложена' },
-                    blocked: { col: '#EF4444', label: 'Заблокирована' },
-                    completed: { col: '#059669', label: 'Выполнена' },
-                    closed: { col: '#6B7280', label: 'Закрыта' },
-                  };
-                  const meta = sMeta[t.status] ?? { col: '#ADADAD', label: t.status };
+                  const meta = STATUS_META[t.status] ?? { col: '#ADADAD', label: t.status };
                   return (
                     <div
                       key={t.id}
