@@ -409,7 +409,9 @@ export class SupabaseDataService {
         }]
       : [];
 
-    await this.syncTable('profiles', 'id', profileRows);
+    // Profiles are identity records from Supabase Auth and must never be archived from
+    // a potentially partial client snapshot (e.g. transient read gaps or RLS-scoped reads).
+    await this.upsertRows('profiles', profileRows, 'id');
     await this.syncTable('tasks', 'id', taskRows);
     await this.syncTable('comments', 'id', commentRows);
     await this.syncTable('task_history', 'id', historyRows);
