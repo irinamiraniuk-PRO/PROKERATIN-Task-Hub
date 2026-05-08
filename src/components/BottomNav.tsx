@@ -48,7 +48,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
     { id: 'dashboard', label: 'Главная', icon: '⌂' },
     { id: 'my-tasks', label: 'Задачи', icon: '◉', badge: returnedCount > 0 ? returnedCount : undefined },
     { id: 'incoming', label: 'Входящие', icon: '↓', badge: incomingCount },
-    { id: isDirector ? 'director-review' : 'pending-director', label: isDirector ? 'Проверка' : 'На пров.', icon: '◎', badge: isDirector ? reviewCount : pendingMineCount },
+    { id: 'notes', label: 'Заметки', icon: '📝' },
   ];
 
   /* All nav items for the menu sheet */
