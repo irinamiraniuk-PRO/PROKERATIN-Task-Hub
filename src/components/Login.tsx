@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
+import { PROFILE_SEED_USERS } from '../data/profileSeeds';
 import BrandLogo from './BrandLogo';
 
 /* ── helpers ─────────────────────────────────────── */
@@ -299,7 +300,7 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
   const { state, login } = useApp();
-  const users = state.users;
+  const users = state.users.length > 0 ? state.users : PROFILE_SEED_USERS;
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
