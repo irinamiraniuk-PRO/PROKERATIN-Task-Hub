@@ -10,6 +10,14 @@ import { parseMentions } from '../utils/mentions';
 
 const LS_KEY = 'prokeratin_state_v9';
 const LEGACY_LS_KEYS = ['prokeratin_state_v8', 'prokeratin_state_v7', 'prokeratin_state_v6'];
+const STATE_EXPORT_VERSION = 1;
+
+type PersistedStateData = Partial<AppState> & { currentUserId?: string | null };
+interface PersistedStatePayload {
+  version: number;
+  exportedAt: string;
+  data: PersistedStateData;
+}
 
 type Action =
   | { type: 'HYDRATE_STATE'; state: AppState }
@@ -359,7 +367,7 @@ const initialState: AppState = {
   userKBArticles: [],
 };
 
-function toAppState(parsed: Partial<AppState> & { currentUserId?: string }): AppState {
+function toAppState(parsed: Partial<AppState> & { currentUserId?: string | null }): AppState {
   const users = (parsed.users ?? USERS) as User[];
   const savedUser = parsed.currentUserId
     ? (users.find(u => u.id === parsed.currentUserId) ?? null)
@@ -375,13 +383,35 @@ function toAppState(parsed: Partial<AppState> & { currentUserId?: string }): App
   };
 }
 
+function normalizePersistedInput(parsed: unknown): PersistedStateData {
+  if (!parsed || typeof parsed !== 'object') return {};
+  if ('data' in parsed && parsed.data && typeof parsed.data === 'object') {
+    return parsed.data as PersistedStateData;
+  }
+  return parsed as PersistedStateData;
+}
+
+function serializeState(state: AppState): string {
+  const payload: PersistedStatePayload = {
+    version: STATE_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: {
+      ...state,
+      currentUserId: state.currentUser?.id,
+      currentUser: undefined,
+    },
+  };
+  return JSON.stringify(payload);
+}
+
 function loadState(): AppState {
   for (const key of [LS_KEY, ...LEGACY_LS_KEYS]) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
-      const parsed = JSON.parse(raw) as Partial<AppState> & { currentUserId?: string };
-      return toAppState(parsed);
+      const parsed = JSON.parse(raw);
+      const normalized = normalizePersistedInput(parsed);
+      return toAppState(normalized);
     } catch { /* ignore */ }
   }
   return initialState;
@@ -389,11 +419,7 @@ function loadState(): AppState {
 
 function saveState(state: AppState) {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify({
-      ...state,
-      currentUserId: state.currentUser?.id ?? null,
-      currentUser: undefined, // don't double-store, restored via currentUserId
-    }));
+    localStorage.setItem(LS_KEY, serializeState(state));
   } catch { /* ignore */ }
 }
 
@@ -484,8 +510,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (event.key !== LS_KEY) return;
       if (!event.newValue) return;
       try {
-        const parsed = JSON.parse(event.newValue) as Partial<AppState> & { currentUserId?: string };
-        dispatch({ type: 'HYDRATE_STATE', state: toAppState(parsed) });
+        const parsed = JSON.parse(event.newValue);
+        dispatch({ type: 'HYDRATE_STATE', state: toAppState(normalizePersistedInput(parsed)) });
       } catch { /* ignore */ }
     }
 
@@ -800,20 +826,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function exportState(): string {
-    const saved = localStorage.getItem(LS_KEY);
-    if (saved) return saved;
-    return JSON.stringify({
-      ...state,
-      currentUserId: state.currentUser?.id ?? null,
-      currentUser: null,
-    });
+    return serializeState(state);
   }
 
   function importState(json: string): boolean {
     try {
-      const parsed = JSON.parse(json) as Partial<AppState> & { currentUserId?: string };
-      const newState = toAppState(parsed);
-      localStorage.setItem(LS_KEY, json);
+      const parsed = JSON.parse(json);
+      const normalized = normalizePersistedInput(parsed);
+      const newState = toAppState(normalized);
+      localStorage.setItem(LS_KEY, serializeState(newState));
       dispatch({ type: 'HYDRATE_STATE', state: newState });
       return true;
     } catch {
