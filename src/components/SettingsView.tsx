@@ -307,16 +307,16 @@ function SyncSection({ color, exportState, importState }: {
   const [importStatus, setImportStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const [codeStatus, setCodeStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const [syncCode, setSyncCode] = useState('');
-  const SYNC_CODE_CHUNK_SIZE = 0x8000;
+  const SYNC_CODE_CHUNK_SIZE = 32768;
 
   function encodeSyncCode(json: string): string | null {
     try {
       const bytes = new TextEncoder().encode(json);
-      let binary = '';
+      const chunks: string[] = [];
       for (let i = 0; i < bytes.length; i += SYNC_CODE_CHUNK_SIZE) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + SYNC_CODE_CHUNK_SIZE));
+        chunks.push(String.fromCharCode(...bytes.subarray(i, i + SYNC_CODE_CHUNK_SIZE)));
       }
-      return btoa(binary);
+      return btoa(chunks.join(''));
     } catch {
       return null;
     }
@@ -479,7 +479,7 @@ function SyncSection({ color, exportState, importState }: {
       )}
       {codeStatus === 'error' && (
         <div style={{ marginTop: 12, background: '#FEF2F2', color: '#B91C1C', borderRadius: 8, padding: '9px 14px', fontSize: 13 }}>
-          Не удалось скопировать код. Разрешите доступ к буферу обмена или скопируйте файл-экспорт.
+          Не удалось скопировать код. Разрешите доступ к буферу обмена или используйте экспорт/импорт файла выше.
         </div>
       )}
       {importStatus === 'ok' && (
