@@ -12,7 +12,7 @@ const LS_KEY = 'prokeratin_state_v9';
 const LEGACY_LS_KEYS = ['prokeratin_state_v8', 'prokeratin_state_v7', 'prokeratin_state_v6'];
 const STATE_EXPORT_VERSION = 1;
 
-type PersistedStateData = Partial<AppState> & { currentUserId?: string };
+type PersistedStateData = Partial<AppState> & { currentUserId?: string | null };
 interface PersistedStatePayload {
   version: number;
   exportedAt: string;
@@ -367,7 +367,7 @@ const initialState: AppState = {
   userKBArticles: [],
 };
 
-function toAppState(parsed: Partial<AppState> & { currentUserId?: string }): AppState {
+function toAppState(parsed: Partial<AppState> & { currentUserId?: string | null }): AppState {
   const users = (parsed.users ?? USERS) as User[];
   const savedUser = parsed.currentUserId
     ? (users.find(u => u.id === parsed.currentUserId) ?? null)

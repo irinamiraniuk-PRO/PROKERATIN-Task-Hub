@@ -310,7 +310,13 @@ function SyncSection({ color, exportState, importState }: {
 
   function encodeSyncCode(json: string): string | null {
     try {
-      return btoa(encodeURIComponent(json));
+      const bytes = new TextEncoder().encode(json);
+      const chunkSize = 0x8000;
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
     } catch {
       return null;
     }
@@ -318,7 +324,9 @@ function SyncSection({ color, exportState, importState }: {
 
   function decodeSyncCode(code: string): string | null {
     try {
-      return decodeURIComponent(atob(code.trim()));
+      const binary = atob(code.trim());
+      const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
     } catch {
       return null;
     }
@@ -411,7 +419,7 @@ function SyncSection({ color, exportState, importState }: {
         <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={handleImportFile} />
       </div>
       <div style={{ marginTop: 14, padding: '12px 12px 10px', borderRadius: 10, border: '1px solid #EEECEA', background: '#FAFAF8' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код синхронизации (без файлов)</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 8 }}>Код синхронизации (без JSON-файла)</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
           <button
             onClick={handleCopySyncCode}
