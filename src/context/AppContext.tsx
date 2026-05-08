@@ -435,6 +435,8 @@ interface AppContextValue {
   addUserKBArticle: (data: Omit<UserKBArticle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
   updateUserKBArticle: (articleId: string, patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>>) => void;
   deleteUserKBArticle: (articleId: string) => void;
+  exportState: () => string;
+  importState: (json: string) => boolean;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -786,6 +788,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'DELETE_USER_KB_ARTICLE', articleId });
   }
 
+  function exportState(): string {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) return saved;
+    return JSON.stringify({
+      ...state,
+      currentUserId: state.currentUser?.id ?? null,
+      currentUser: null,
+    });
+  }
+
+  function importState(json: string): boolean {
+    try {
+      const parsed = JSON.parse(json) as Partial<AppState> & { currentUserId?: string };
+      const newState = toAppState(parsed);
+      localStorage.setItem(LS_KEY, json);
+      dispatch({ type: 'HYDRATE_STATE', state: newState });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   return (
     <AppContext.Provider value={{
       state, login, logout, createTask, updateStatus, transferTask,
@@ -797,6 +821,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateUserPassword, updateUserAvatar,
       createNote, updateNote, deleteNote,
       addUserKBArticle, updateUserKBArticle, deleteUserKBArticle,
+      exportState, importState,
     }}>
       {children}
     </AppContext.Provider>

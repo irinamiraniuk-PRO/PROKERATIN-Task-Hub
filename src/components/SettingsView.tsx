@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import BrandLogo from './BrandLogo';
 
 export default function SettingsView() {
-  const { state, updateUserPassword, updateUserAvatar } = useApp();
+  const { state, updateUserPassword, updateUserAvatar, exportState, importState } = useApp();
   const { currentUser } = state;
   if (!currentUser) return null;
 
@@ -85,6 +85,9 @@ export default function SettingsView() {
           })}
         </div>
       </div>
+
+      {/* Cross-device sync */}
+      <SyncSection color={color} exportState={exportState} importState={importState} />
     </div>
   );
 }
@@ -289,6 +292,85 @@ function PasswordSection({ color, onSave }: { color: string; onSave: (current: s
           Сохранить пароль
         </button>
       </form>
+    </div>
+  );
+}
+
+/* ── Cross-device sync section ───────────────────────── */
+function SyncSection({ color, exportState, importState }: {
+  color: string;
+  exportState: () => string;
+  importState: (json: string) => boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+
+  function handleExport() {
+    const json = exportState();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `prokeratin-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target?.result as string;
+      const ok = importState(text);
+      setImportStatus(ok ? 'ok' : 'error');
+      setTimeout(() => setImportStatus('idle'), 4000);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  const btnBase: React.CSSProperties = {
+    padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+    cursor: 'pointer', transition: 'opacity 0.15s', fontFamily: 'var(--font)',
+    border: 'none',
+  };
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid #EBEBEB', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 6 }}>📲 Синхронизация между устройствами</div>
+      <div style={{ fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.55 }}>
+        Данные хранятся локально в браузере. Чтобы перенести все данные (пароль, фото, заметки, задачи) на другое устройство, экспортируйте файл резервной копии и импортируйте его на новом устройстве.
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button
+          onClick={handleExport}
+          style={{ ...btnBase, background: color, color: '#fff' }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+        >
+          📤 Экспорт данных
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          style={{ ...btnBase, background: '#F4F4F2', color: '#333', border: '1.5px solid #DEDAD6' }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+        >
+          📥 Импорт данных
+        </button>
+        <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={handleImportFile} />
+      </div>
+      {importStatus === 'ok' && (
+        <div style={{ marginTop: 12, background: '#ECFDF5', color: '#059669', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500 }}>
+          ✓ Данные успешно импортированы. Все изменения применены.
+        </div>
+      )}
+      {importStatus === 'error' && (
+        <div style={{ marginTop: 12, background: '#FEF2F2', color: '#B91C1C', borderRadius: 8, padding: '9px 14px', fontSize: 13 }}>
+          Не удалось импортировать файл. Убедитесь, что это корректный файл резервной копии.
+        </div>
+      )}
     </div>
   );
 }
