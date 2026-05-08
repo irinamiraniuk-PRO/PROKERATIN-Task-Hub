@@ -307,14 +307,14 @@ function SyncSection({ color, exportState, importState }: {
   const [importStatus, setImportStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const [codeStatus, setCodeStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const [syncCode, setSyncCode] = useState('');
+  const SYNC_CODE_CHUNK_SIZE = 0x8000;
 
   function encodeSyncCode(json: string): string | null {
     try {
       const bytes = new TextEncoder().encode(json);
-      const chunkSize = 0x8000;
       let binary = '';
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      for (let i = 0; i < bytes.length; i += SYNC_CODE_CHUNK_SIZE) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + SYNC_CODE_CHUNK_SIZE));
       }
       return btoa(binary);
     } catch {
