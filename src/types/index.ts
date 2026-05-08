@@ -168,6 +168,12 @@ export interface UserKBArticle {
   updatedAt: string;
 }
 
+export interface DashboardTodoItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface AppState {
   currentUser: User | null;
   tasks: Task[];
@@ -176,5 +182,5 @@ export interface AppState {
   projects: Project[];
   notes: Note[];
   userKBArticles: UserKBArticle[];
+  dashboardTodos: Record<string, DashboardTodoItem[]>;
 }
-

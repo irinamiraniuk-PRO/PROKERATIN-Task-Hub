@@ -2,15 +2,16 @@ import { createContext, useContext, useReducer, useEffect, useRef, type ReactNod
 import type {
   AppState, User, Task, TaskStatus, TaskPriority, TaskTag,
   Comment, HistoryEntry, ChecklistItem, Attachment, Notification, NotificationType,
-  RecurrenceType, Project, Note, UserKBArticle,
+  RecurrenceType, Project, Note, UserKBArticle, DashboardTodoItem,
 } from '../types';
 import { USERS, INITIAL_TASKS } from '../data/initialData';
 import { INITIAL_PROJECTS } from '../data/initialProjects';
 import { parseMentions } from '../utils/mentions';
+import { createStateSyncAdapter, type SyncStatus } from '../utils/syncAdapter';
 
-const LS_KEY = 'prokeratin_state_v9';
 const LEGACY_LS_KEYS = ['prokeratin_state_v8', 'prokeratin_state_v7', 'prokeratin_state_v6'];
 const STATE_EXPORT_VERSION = 1;
+const stateSyncAdapter = createStateSyncAdapter();
 
 type PersistedStateData = Partial<AppState> & { currentUserId?: string | null };
 interface PersistedStatePayload {
@@ -48,6 +49,7 @@ type Action =
   | { type: 'CREATE_NOTE'; note: Note }
   | { type: 'UPDATE_NOTE'; noteId: string; patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>> }
   | { type: 'DELETE_NOTE'; noteId: string }
+  | { type: 'SET_DASHBOARD_TODOS'; userId: string; items: DashboardTodoItem[] }
   | { type: 'ADD_USER_KB_ARTICLE'; article: UserKBArticle }
   | { type: 'UPDATE_USER_KB_ARTICLE'; articleId: string; patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>> }
   | { type: 'DELETE_USER_KB_ARTICLE'; articleId: string };
@@ -342,6 +344,14 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'DELETE_NOTE':
       return { ...state, notes: state.notes.filter(n => n.id !== action.noteId) };
+    case 'SET_DASHBOARD_TODOS':
+      return {
+        ...state,
+        dashboardTodos: {
+          ...state.dashboardTodos,
+          [action.userId]: action.items,
+        },
+      };
     case 'ADD_USER_KB_ARTICLE':
       return { ...state, userKBArticles: [action.article, ...state.userKBArticles] };
     case 'UPDATE_USER_KB_ARTICLE': {
@@ -365,6 +375,7 @@ const initialState: AppState = {
   projects: INITIAL_PROJECTS,
   notes: [],
   userKBArticles: [],
+  dashboardTodos: {},
 };
 
 function toAppState(parsed: Partial<AppState> & { currentUserId?: string | null }): AppState {
@@ -380,6 +391,7 @@ function toAppState(parsed: Partial<AppState> & { currentUserId?: string | null 
     projects: parsed.projects ?? INITIAL_PROJECTS,
     notes: parsed.notes ?? [],
     userKBArticles: parsed.userKBArticles ?? [],
+    dashboardTodos: parsed.dashboardTodos ?? {},
   };
 }
 
@@ -405,7 +417,16 @@ function serializeState(state: AppState): string {
 }
 
 function loadState(): AppState {
-  for (const key of [LS_KEY, ...LEGACY_LS_KEYS]) {
+  const currentPayload = stateSyncAdapter.load();
+  if (currentPayload) {
+    try {
+      const parsed = JSON.parse(currentPayload);
+      const normalized = normalizePersistedInput(parsed);
+      return toAppState(normalized);
+    } catch { /* ignore */ }
+  }
+
+  for (const key of LEGACY_LS_KEYS) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
@@ -418,9 +439,7 @@ function loadState(): AppState {
 }
 
 function saveState(state: AppState) {
-  try {
-    localStorage.setItem(LS_KEY, serializeState(state));
-  } catch { /* ignore */ }
+  stateSyncAdapter.save(serializeState(state));
 }
 
 interface AppContextValue {
@@ -458,11 +477,13 @@ interface AppContextValue {
   createNote: (data: { title: string; content: string; emoji: string; color: string }) => void;
   updateNote: (noteId: string, patch: Partial<Pick<Note, 'title' | 'content' | 'emoji' | 'color' | 'pinned'>>) => void;
   deleteNote: (noteId: string) => void;
+  setDashboardTodos: (userId: string, items: DashboardTodoItem[]) => void;
   addUserKBArticle: (data: Omit<UserKBArticle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
   updateUserKBArticle: (articleId: string, patch: Partial<Pick<UserKBArticle, 'title' | 'content' | 'type' | 'url'>>) => void;
   deleteUserKBArticle: (articleId: string) => void;
   exportState: () => string;
   importState: (json: string) => boolean;
+  syncStatus: SyncStatus;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -505,18 +526,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   useEffect(() => {
-    function handleStorage(event: StorageEvent) {
-      if (event.storageArea !== localStorage) return;
-      if (event.key !== LS_KEY) return;
-      if (!event.newValue) return;
+    return stateSyncAdapter.subscribe((payload) => {
       try {
-        const parsed = JSON.parse(event.newValue);
+        const parsed = JSON.parse(payload);
         dispatch({ type: 'HYDRATE_STATE', state: toAppState(normalizePersistedInput(parsed)) });
       } catch { /* ignore */ }
-    }
-
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    });
   }, []);
 
   // Request browser notification permission once on mount
@@ -805,6 +820,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'DELETE_NOTE', noteId });
   }
 
+  function setDashboardTodos(userId: string, items: DashboardTodoItem[]) {
+    dispatch({ type: 'SET_DASHBOARD_TODOS', userId, items });
+  }
+
   function addUserKBArticle(data: Omit<UserKBArticle, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
     if (!state.currentUser) return;
     const article: UserKBArticle = {
@@ -834,7 +853,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const parsed = JSON.parse(json);
       const normalized = normalizePersistedInput(parsed);
       const newState = toAppState(normalized);
-      localStorage.setItem(LS_KEY, serializeState(newState));
+      stateSyncAdapter.save(serializeState(newState));
       dispatch({ type: 'HYDRATE_STATE', state: newState });
       return true;
     } catch {
@@ -852,8 +871,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateTaskProject, updateTaskDeps, createProject, updateProject,
       updateUserPassword, updateUserAvatar,
       createNote, updateNote, deleteNote,
+      setDashboardTodos,
       addUserKBArticle, updateUserKBArticle, deleteUserKBArticle,
       exportState, importState,
+      syncStatus: stateSyncAdapter.status,
     }}>
       {children}
     </AppContext.Provider>
