@@ -9,7 +9,6 @@ import { createStateSyncAdapter, type SyncStatus } from '../utils/syncAdapter';
 import { ensureProfileForAuthUser, getSessionUser, signInWithLogin, signOutAuth, subscribeAuthState, updateAuthPassword } from '../utils/authService';
 import { uploadAttachmentDataUrl, uploadAvatarDataUrl } from '../utils/storageService';
 
-const SESSION_USER_KEY = 'prokeratin_session_user_v1';
 const STATE_EXPORT_VERSION = 1;
 const stateSyncAdapter = createStateSyncAdapter();
 
@@ -385,27 +384,7 @@ const initialState: AppState = {
   dashboardTodos: {},
 };
 
-function getSessionUserId(): string | null {
-  try {
-    return localStorage.getItem(SESSION_USER_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function setSessionUserId(userId: string | null) {
-  try {
-    if (userId) {
-      localStorage.setItem(SESSION_USER_KEY, userId);
-    } else {
-      localStorage.removeItem(SESSION_USER_KEY);
-    }
-  } catch {
-    // ignore storage write errors
-  }
-}
-
-function toAppState(parsed: PersistedStateData, sessionUserId = getSessionUserId()): AppState {
+function toAppState(parsed: PersistedStateData, sessionUserId: string | null = null): AppState {
   const users = (parsed.users ?? []) as User[];
   const savedUser = sessionUserId
     ? (users.find(u => u.id === sessionUserId) ?? null)
@@ -457,7 +436,7 @@ function loadState(): AppState {
     try {
       const parsed = JSON.parse(currentPayload);
       const normalized = normalizePersistedInput(parsed);
-      return toAppState(normalized);
+      return toAppState(normalized, null);
     } catch { /* ignore */ }
   }
   return initialState;
@@ -543,6 +522,7 @@ function showBrowserNotification(title: string, body: string) {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [syncBootstrapReady, setSyncBootstrapReady] = useState(!stateSyncAdapter.requiresBootstrapBeforeSave);
   const prevUnreadCountRef = useRef<number>(0);
   const notifInitializedRef = useRef(false);
@@ -570,7 +550,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       try {
         const parsed = JSON.parse(payload);
-        const nextState = toAppState(normalizePersistedInput(parsed));
+        const nextState = toAppState(normalizePersistedInput(parsed), sessionUserId);
         const nextFingerprint = getStateFingerprint(nextState);
         if (nextFingerprint === lastStateFingerprintRef.current) {
           markReady();
@@ -581,7 +561,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch { /* ignore */ }
       markReady();
     });
-  }, []);
+  }, [sessionUserId]);
 
   useEffect(() => {
     void getSessionUser().then((user) => {
@@ -597,13 +577,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const sessionUserId = getSessionUserId();
     if (!sessionUserId) return;
     const matched = state.users.find(user => user.id === sessionUserId);
     if (!matched) return;
     if (state.currentUser?.id === matched.id) return;
     dispatch({ type: 'LOGIN', user: matched });
-  }, [state.users, state.currentUser?.id]);
+  }, [state.users, state.currentUser?.id, sessionUserId]);
 
   // Request browser notification permission once on mount
   useEffect(() => {
@@ -655,7 +634,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
 
     const userId = result.user.id;
-    setSessionUserId(userId);
     const stateUser = state.users.find(u => u.id === userId);
     if (stateUser) {
       dispatch({ type: 'LOGIN', user: stateUser });
@@ -676,7 +654,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function logout() {
     await signOutAuth();
-    setSessionUserId(null);
     dispatch({ type: 'LOGOUT' });
   }
 
@@ -687,7 +664,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     reactionDeadline?: string;
   }) {
     if (!state.currentUser) return;
-    if (state.currentUser.role === 'guest') return;
+    if (state.currentUser.role === 'guest') {
+      console.warn('Guests cannot create tasks');
+      return;
+    }
     const id = uid();
     const nowTs = new Date().toISOString();
     const checklist: ChecklistItem[] | undefined = data.checklist?.length
@@ -897,13 +877,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function createProject(data: Omit<Project, 'id' | 'createdAt' | 'taskIds'>) {
-    if (state.currentUser?.role === 'guest') return;
+    if (state.currentUser?.role === 'guest') {
+      console.warn('Guests cannot create projects');
+      return;
+    }
     const project: Project = { ...data, id: uid(), createdAt: new Date().toISOString(), taskIds: [] };
     dispatch({ type: 'CREATE_PROJECT', project });
   }
 
   function updateProject(projectId: string, patch: Partial<Pick<Project, 'name' | 'emoji' | 'description' | 'status' | 'deadline' | 'ownerId' | 'memberIds' | 'color'>>) {
-    if (state.currentUser?.role === 'guest') return;
+    if (state.currentUser?.role === 'guest') {
+      console.warn('Guests cannot update projects');
+      return;
+    }
     dispatch({ type: 'UPDATE_PROJECT', projectId, patch });
   }
 
@@ -970,7 +956,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   function exportState(): string {
-    if (state.currentUser?.role !== 'director') return '';
+    if (state.currentUser?.role !== 'director') {
+      console.warn('Export is available only for director role');
+      return '';
+    }
     return serializeState(state);
   }
 
@@ -978,7 +967,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const parsed = JSON.parse(json);
       const normalized = normalizePersistedInput(parsed);
-      const newState = toAppState(normalized);
+      const newState = toAppState(normalized, sessionUserId);
       stateSyncAdapter.save(serializeState(newState));
       dispatch({ type: 'HYDRATE_STATE', state: newState });
       return true;

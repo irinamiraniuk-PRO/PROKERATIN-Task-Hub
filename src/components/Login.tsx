@@ -326,6 +326,7 @@ export default function Login() {
       setPhase('welcome-out');
       setTimeout(async () => {
         const pending = pendingCredentialsRef.current;
+        pendingCredentialsRef.current = null;
         if (!pending) return;
         const ok = await login(pending.login, pending.password, pending.profileHint);
         if (!ok) {

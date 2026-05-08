@@ -27,7 +27,6 @@ interface ProfileRow {
   role: User['role'];
   avatar: string | null;
   color: string | null;
-  deleted_at: string | null;
 }
 
 interface TaskRow {
@@ -206,7 +205,7 @@ export class SupabaseDataService {
 
   async fetchStateData(): Promise<PersistedStateData | null> {
     const [profiles, taskRows, commentRows, historyRows, noteRows, settingsRows] = await Promise.all([
-      this.fetchRowsSafe<ProfileRow>('profiles', 'id,name,login,role,avatar,color,deleted_at', { column: 'name', ascending: true }),
+      this.fetchRowsSafe<ProfileRow>('profiles', 'id,name,login,role,avatar,color', { column: 'name', ascending: true }),
       this.fetchRowsSafe<TaskRow>('tasks', '*', { column: 'created_at', ascending: false }),
       this.fetchRowsSafe<CommentRow>('comments', 'id,task_id,author_id,text,created_at,mentions,deleted_at', { column: 'created_at', ascending: true }),
       this.fetchRowsSafe<TaskHistoryRow>('task_history', 'id,task_id,actor_id,action,from_status,to_status,created_at,meta,deleted_at', { column: 'created_at', ascending: true }),

@@ -2,7 +2,9 @@ import type { AuthChangeEvent, Session, User as SupabaseAuthUser } from '@supaba
 import type { UserRole } from '../types';
 import { supabaseClient } from './supabaseClient';
 
-const AUTH_EMAIL_DOMAIN = 'prokeratin.local';
+// Synthetic auth domain for login->email conversion in Supabase Auth.
+// It does not need public DNS resolution; it only must be consistent across sign-in/user creation.
+const AUTH_EMAIL_DOMAIN = 'auth.prokeratin.internal';
 
 export interface ProfileSeed {
   login: string;

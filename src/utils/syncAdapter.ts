@@ -100,7 +100,9 @@ function readLegacyLocalData(): PersistedStateData | null {
       if (!key) continue;
       if (LEGACY_LOCAL_STORAGE_IGNORED.includes(key)) continue;
       const normalizedKey = key.toLowerCase();
-      // Broad substring matching is intentional to recover legacy keys from older app versions.
+      // Broad substring matching is intentional to recover keys from pre-Supabase builds
+      // (v1 local-only and early v2 hybrid builds that used ad-hoc localStorage names).
+      // Remove this fallback after legacy migration support sunset (planned after 2026 Q4).
       const isLikelyTaskHubKey = LEGACY_STORAGE_KEY_PATTERNS.some(hint => normalizedKey.includes(hint));
       if (!isLikelyTaskHubKey) continue;
       const raw = localStorage.getItem(key);

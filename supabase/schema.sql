@@ -59,6 +59,8 @@ create table if not exists public.comments (
 create table if not exists public.task_history (
   id text primary key,
   task_id text not null references public.tasks(id) on delete restrict,
+  -- intentionally no FK for actor_id: history may contain system/automation actors
+  -- and historical IDs of users that were later archived; this keeps history append-only.
   actor_id text not null,
   action text not null,
   from_status text,
