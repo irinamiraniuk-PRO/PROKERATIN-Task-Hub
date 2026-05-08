@@ -494,45 +494,6 @@ export default function Dashboard({ searchQuery, onViewChange, onOpenNotificatio
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <MiniCalendar today={now} />
 
-          {/* Today's tasks by status */}
-          <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1px solid #ECEAFF', boxShadow: '0 2px 10px rgba(100,60,200,0.06)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A' }}>📋 Задачи сегодня</span>
-              {todayTasks.length > 0 && (
-                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: `${color}14`, color }}>{todayTasks.length}</span>
-              )}
-            </div>
-            {todayTasks.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#C0BDB9', textAlign: 'center', padding: '10px 0' }}>Нет задач на сегодня ☀️</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {todayTasks.slice(0, 5).map(t => {
-                  const meta = STATUS_META[t.status] ?? { col: '#ADADAD', label: t.status };
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => setSelectedTask(t)}
-                      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '6px 7px', borderRadius: 8, transition: 'background 0.12s' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = `${color}0A`; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                    >
-                      <div style={{ width: 3, borderRadius: 2, background: meta.col, flexShrink: 0, alignSelf: 'stretch', minHeight: 30 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#222', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
-                        <div style={{ fontSize: 10, color: meta.col, fontWeight: 600, marginTop: 1 }}>{meta.label}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {todayTasks.length > 5 && (
-                  <div onClick={() => onViewChange?.('my-tasks')} style={{ fontSize: 11.5, color, textAlign: 'center', padding: '5px', fontWeight: 600, cursor: 'pointer', borderTop: '1px solid #F1F0EE', marginTop: 2 }}>
-                    ещё {todayTasks.length - 5} задач →
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Efficiency */}
           <div style={{ background: '#fff', borderRadius: 12, padding: '14px 16px', border: '1px solid #ECEAFF', boxShadow: '0 2px 10px rgba(100,60,200,0.06)' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A', marginBottom: 10 }}>📈 Эффективность</div>
