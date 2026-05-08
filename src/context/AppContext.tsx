@@ -397,7 +397,7 @@ function serializeState(state: AppState): string {
     exportedAt: new Date().toISOString(),
     data: {
       ...state,
-      currentUserId: state.currentUser?.id ?? null,
+      currentUserId: state.currentUser?.id,
       currentUser: undefined,
     },
   };
