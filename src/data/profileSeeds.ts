@@ -19,10 +19,12 @@ export const PROFILE_SEEDS_BY_LOGIN: Record<string, ProfileSeed> = PROFILE_SEEDS
   return acc;
 }, {});
 
-export const PROFILE_SEED_USERS: User[] = PROFILE_SEEDS.map(seed => ({
+export const FALLBACK_USERS: User[] = PROFILE_SEEDS.map(seed => ({
   id: seed.login,
   login: seed.login,
   name: seed.name,
   role: seed.role,
   color: seed.color,
 }));
+
+export const PROFILE_SEED_USERS: User[] = FALLBACK_USERS;

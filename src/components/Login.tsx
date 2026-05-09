@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
-import { PROFILE_SEED_USERS } from '../data/profileSeeds';
+import { FALLBACK_USERS } from '../data/profileSeeds';
 import BrandLogo from './BrandLogo';
 
 /* ── helpers ─────────────────────────────────────── */
@@ -20,6 +20,57 @@ function hexAlpha(hex: string, alpha: number) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function normalizeLocalUser(value: unknown): User | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<User> & { login?: unknown; name?: unknown; role?: unknown; id?: unknown };
+  if (typeof candidate.login !== 'string' || typeof candidate.name !== 'string') return null;
+  const role = candidate.role === 'director' || candidate.role === 'guest' ? candidate.role : 'employee';
+  const login = candidate.login.trim().toLowerCase();
+  if (!login) return null;
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : login,
+    login,
+    name: candidate.name,
+    role,
+    color: typeof candidate.color === 'string' ? candidate.color : undefined,
+    avatar: typeof candidate.avatar === 'string' ? candidate.avatar : undefined,
+  };
+}
+
+function readLocalStorageUsers(): User[] {
+  if (typeof window === 'undefined') return [];
+  const usersByLogin = new Map<string, User>();
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || key === 'prokeratin_session_user_v1') continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        continue;
+      }
+      const container = parsed && typeof parsed === 'object' && 'data' in parsed
+        ? (parsed as { data?: unknown }).data
+        : parsed;
+      const users = container && typeof container === 'object' && 'users' in (container as Record<string, unknown>)
+        ? (container as { users?: unknown }).users
+        : undefined;
+      if (!Array.isArray(users)) continue;
+      users.forEach((user) => {
+        const normalized = normalizeLocalUser(user);
+        if (!normalized) return;
+        usersByLogin.set(normalized.login, normalized);
+      });
+    }
+  } catch {
+    return [];
+  }
+  return Array.from(usersByLogin.values());
 }
 
 /* ── WelcomeOverlay ──────────────────────────────── */
@@ -300,14 +351,16 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
   const { state, login, createStarterUsers } = useApp();
+  const localStorageUsers = useMemo(() => readLocalStorageUsers(), []);
   const users = useMemo(() => {
     const usersByLogin = new Map<string, User>();
-    // Seed profiles define guaranteed display order; loaded profiles override same logins.
-    PROFILE_SEED_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+    // Fallback profiles define guaranteed display order; loaded profiles override same logins.
+    FALLBACK_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+    localStorageUsers.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
     state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
     return Array.from(usersByLogin.values());
-  }, [state.users]);
-  const hasExistingUsers = state.users.length > 0;
+  }, [localStorageUsers, state.users]);
+  const hasExistingUsers = state.users.length > 0 || localStorageUsers.length > 0;
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -457,7 +510,7 @@ export default function Login() {
                 textAlign: 'center',
               }}>
                 <div style={{ fontSize: 13, color: '#92400E', marginBottom: 10 }}>
-                  Пользователи не найдены. Создать стартовых пользователей?
+                  Пользователи не найдены. Восстановить стартовых пользователей?
                 </div>
                 <button
                   type="button"
@@ -475,7 +528,7 @@ export default function Login() {
                     opacity: creatingStarters ? 0.7 : 1,
                   }}
                 >
-                  {creatingStarters ? 'Создаём…' : 'Создать стартовых пользователей'}
+                  {creatingStarters ? 'Восстанавливаем…' : 'Восстановить стартовых пользователей'}
                 </button>
                 {starterMessage && (
                   <div style={{ marginTop: 8, fontSize: 12, color: '#78350F' }}>
