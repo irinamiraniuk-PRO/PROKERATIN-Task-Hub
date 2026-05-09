@@ -749,7 +749,7 @@ export default function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleCreateStarterUsers()}
+                onClick={handleCreateStarterUsers}
                 disabled={creatingStarters || !starterPassword.trim()}
                 style={{
                   border: 'none',

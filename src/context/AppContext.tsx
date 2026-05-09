@@ -626,7 +626,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   async function login(loginVal: string, password: string, profileHint?: Pick<User, 'name' | 'role' | 'color'>): Promise<boolean> {
     const normalizedLogin = loginVal.trim().toLowerCase();
-    const fallbackSeed = profileHint ?? PROFILE_SEEDS_BY_LOGIN[normalizedLogin];
+    const seedByLogin = PROFILE_SEEDS_BY_LOGIN[normalizedLogin] ?? null;
+    const fallbackSeed = profileHint ?? seedByLogin;
     const fallbackUser: User | null = fallbackSeed
       ? {
           id: normalizedLogin,
