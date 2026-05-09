@@ -22,22 +22,6 @@ function createTodoId(): string {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Status colour/label map — defined once outside the component to avoid per-render recreation
-const STATUS_META: Record<string, { col: string; label: string }> = {
-  new: { col: '#6366F1', label: 'Новая' },
-  accepted: { col: '#059669', label: 'Принята' },
-  in_progress: { col: '#1D4ED8', label: 'В работе' },
-  pending_director_review: { col: '#D97706', label: 'На проверке' },
-  returned_for_revision: { col: '#EF4444', label: 'На доработку' },
-  waiting_response: { col: '#F97316', label: 'Ждёт ответа' },
-  overdue: { col: '#B91C1C', label: 'Просрочена' },
-  transferred: { col: '#3B82F6', label: 'Передана' },
-  postponed: { col: '#9CA3AF', label: 'Отложена' },
-  blocked: { col: '#EF4444', label: 'Заблокирована' },
-  completed: { col: '#059669', label: 'Выполнена' },
-  closed: { col: '#6B7280', label: 'Закрыта' },
-};
-
 function toMinskDateStr(date: Date): string {
   return date.toLocaleDateString('en-CA', { timeZone: TZ });
 }

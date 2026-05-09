@@ -229,7 +229,7 @@ export default function BottomNav({ currentView, onViewChange, onCreateTask }: B
       {/* Bottom nav bar */}
       <nav className="bottom-nav">
         {/* Left two items + right two items rendered via shared helper */}
-        {[...leftItems, null, ...rightItems].map((item, idx) => {
+        {[...leftItems, null, ...rightItems].map((item) => {
           if (item === null) {
             /* Create button — centered */
             return (
