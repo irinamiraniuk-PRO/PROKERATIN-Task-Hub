@@ -642,20 +642,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!result.ok || !result.user) {
       if (!fallbackUser || !password.trim()) return false;
       if (hasSupabaseConfig) {
-        if (state.users.length > 0) return false;
-        const created = await createStarterUsers(password);
-        if (created <= 0) return false;
+        if (state.users.length === 0) {
+          await createStarterUsers(password);
+        }
         const retry = await signInWithLogin(loginVal, password);
-        if (!retry.ok || !retry.user) return false;
-        await ensureProfileForAuthUser(retry.user, {
-          login: normalizedLogin,
-          name: fallbackUser.name,
-          role: fallbackUser.role,
-          color: fallbackUser.color,
-        });
-        dispatch({ type: 'UPSERT_USERS', users: [{ ...fallbackUser, id: retry.user.id }] });
-        dispatch({ type: 'LOGIN', user: { ...fallbackUser, id: retry.user.id } });
-        return true;
+        if (retry.ok && retry.user) {
+          await ensureProfileForAuthUser(retry.user, {
+            login: normalizedLogin,
+            name: fallbackUser.name,
+            role: fallbackUser.role,
+            color: fallbackUser.color,
+          });
+          dispatch({ type: 'UPSERT_USERS', users: [{ ...fallbackUser, id: retry.user.id }] });
+          dispatch({ type: 'LOGIN', user: { ...fallbackUser, id: retry.user.id } });
+          return true;
+        }
       }
       dispatch({ type: 'UPSERT_USERS', users: [fallbackUser] });
       dispatch({ type: 'LOGIN', user: fallbackUser });
