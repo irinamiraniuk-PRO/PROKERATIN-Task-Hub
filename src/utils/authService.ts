@@ -1,10 +1,19 @@
 import type { AuthChangeEvent, Session, User as SupabaseAuthUser } from '@supabase/supabase-js';
-import type { UserRole } from '../types';
+import { PROFILE_SEEDS, PROFILE_SEED_USERS } from '../data/profileSeeds';
+import type { User, UserRole } from '../types';
 import { supabaseClient } from './supabaseClient';
 
 // Synthetic auth domain for login->email conversion in Supabase Auth.
 // It does not need public DNS resolution; it only must be consistent across sign-in/user creation.
 const AUTH_EMAIL_DOMAIN = 'auth.prokeratin.internal';
+interface ProfileRow {
+  id: string;
+  login: string;
+  name: string;
+  role: UserRole;
+  avatar: string | null;
+  color: string | null;
+}
 
 export interface ProfileSeed {
   login: string;
@@ -13,8 +22,36 @@ export interface ProfileSeed {
   color?: string;
 }
 
+export interface EnsureStarterProfilesResult {
+  created: number;
+  existing: number;
+  users: User[];
+}
+
 export function toAuthEmail(login: string): string {
   return `${login.trim().toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+}
+
+function toUser(row: ProfileRow): User {
+  return {
+    id: row.id,
+    login: row.login,
+    name: row.name,
+    role: row.role,
+    avatar: row.avatar ?? undefined,
+    color: row.color ?? undefined,
+  };
+}
+
+async function fetchProfiles(): Promise<User[]> {
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .select('id,login,name,role,avatar,color')
+    .is('deleted_at', null)
+    .order('name', { ascending: true });
+  if (error) return [];
+  return ((data ?? []) as ProfileRow[]).map(toUser);
 }
 
 export async function signInWithLogin(login: string, password: string): Promise<{ ok: boolean; user: SupabaseAuthUser | null }> {
@@ -74,4 +111,73 @@ export async function ensureProfileForAuthUser(user: SupabaseAuthUser, seed: Pro
     updated_at: new Date().toISOString(),
     deleted_at: null,
   });
+}
+
+export async function ensureStarterProfiles(password: string): Promise<EnsureStarterProfilesResult> {
+  if (!supabaseClient) {
+    return {
+      created: 0,
+      existing: PROFILE_SEED_USERS.length,
+      users: PROFILE_SEED_USERS,
+    };
+  }
+
+  const normalizedPassword = password.trim();
+  if (!normalizedPassword) {
+    return {
+      created: 0,
+      existing: 0,
+      users: [],
+    };
+  }
+
+  const existingUsers = await fetchProfiles();
+  if (existingUsers.length > 0) {
+    return {
+      created: 0,
+      existing: existingUsers.length,
+      users: existingUsers,
+    };
+  }
+
+  let created = 0;
+  const seenLogins = new Set<string>();
+
+  for (const seed of PROFILE_SEEDS) {
+    const login = seed.login.trim().toLowerCase();
+    if (seenLogins.has(login)) continue;
+    seenLogins.add(login);
+
+    const email = toAuthEmail(login);
+    const signUpResult = await supabaseClient.auth.signUp({
+      email,
+      password: normalizedPassword,
+    });
+    let authUser: SupabaseAuthUser | null;
+    if (!signUpResult.error) {
+      authUser = signUpResult.data.user ?? null;
+    } else {
+      const errorCode = (signUpResult.error.code ?? '').toLowerCase();
+      const alreadyExistsByCode = errorCode === 'user_already_exists' || errorCode === 'email_exists';
+      const message = signUpResult.error.message.toLowerCase();
+      const alreadyExistsByMessage = message.includes('already registered') || message.includes('already exists');
+      const alreadyExists = alreadyExistsByCode || alreadyExistsByMessage;
+      if (!alreadyExists) continue;
+      const signInResult = await signInWithLogin(login, normalizedPassword);
+      if (!signInResult.ok || !signInResult.user) continue;
+      authUser = signInResult.user;
+    }
+
+    if (!authUser) continue;
+    await ensureProfileForAuthUser(authUser, seed);
+    created += 1;
+  }
+  await signOutAuth();
+
+  const users = await fetchProfiles();
+  return {
+    created,
+    existing: Math.max(0, users.length - created),
+    users: users.length > 0 ? users : PROFILE_SEED_USERS,
+  };
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
 import { PROFILE_SEED_USERS } from '../data/profileSeeds';
@@ -299,8 +299,15 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
 type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
-  const { state, login } = useApp();
-  const users = state.users.length > 0 ? state.users : PROFILE_SEED_USERS;
+  const { state, login, createStarterUsers } = useApp();
+  const users = useMemo(() => {
+    const usersByLogin = new Map<string, User>();
+    // Seed profiles define guaranteed display order; loaded profiles override same logins.
+    PROFILE_SEED_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+    state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+    return Array.from(usersByLogin.values());
+  }, [state.users]);
+  const hasExistingUsers = state.users.length > 0;
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -308,6 +315,10 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [creatingStarters, setCreatingStarters] = useState(false);
+  const [starterMessage, setStarterMessage] = useState('');
+  const [showStarterDialog, setShowStarterDialog] = useState(false);
+  const [starterPassword, setStarterPassword] = useState('');
   const pendingCredentialsRef = useRef<{
     login: string;
     password: string;
@@ -352,6 +363,25 @@ export default function Login() {
     setSelectedUser(null);
     setError('');
     setPassword('');
+  }
+
+  async function handleCreateStarterUsers() {
+    if (!starterPassword.trim()) {
+      setStarterMessage('Создание отменено: пароль не указан.');
+      return;
+    }
+    setCreatingStarters(true);
+    setStarterMessage('');
+    try {
+      const created = await createStarterUsers(starterPassword);
+      setStarterMessage(created > 0 ? 'Стартовые пользователи созданы.' : 'Стартовые пользователи уже доступны.');
+      setShowStarterDialog(false);
+      setStarterPassword('');
+    } catch {
+      setStarterMessage('Не удалось создать стартовых пользователей. Используйте локальные профили для входа.');
+    } finally {
+      setCreatingStarters(false);
+    }
   }
 
   function handleLogin(e: React.FormEvent) {
@@ -415,6 +445,45 @@ export default function Login() {
               <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>Выберите свой профиль</div>
               <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
             </div>
+
+            {!hasExistingUsers && (
+              <div style={{
+                margin: '0 auto 20px',
+                maxWidth: 540,
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: 12,
+                padding: '14px 16px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 13, color: '#92400E', marginBottom: 10 }}>
+                  Пользователи не найдены. Создать стартовых пользователей?
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowStarterDialog(true)}
+                  disabled={creatingStarters}
+                  style={{
+                    border: 'none',
+                    borderRadius: 10,
+                    background: '#BE185D',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    padding: '10px 14px',
+                    cursor: creatingStarters ? 'not-allowed' : 'pointer',
+                    opacity: creatingStarters ? 0.7 : 1,
+                  }}
+                >
+                  {creatingStarters ? 'Создаём…' : 'Создать стартовых пользователей'}
+                </button>
+                {starterMessage && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#78350F' }}>
+                    {starterMessage}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div
               className="stagger"
@@ -614,6 +683,92 @@ export default function Login() {
           </div>
         )}
       </div>
+
+      {showStarterDialog && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          zIndex: 10000,
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: 380,
+            background: '#fff',
+            borderRadius: 14,
+            border: '1px solid #EEECEA',
+            boxShadow: '0 10px 32px rgba(0,0,0,0.18)',
+            padding: 20,
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', marginBottom: 8 }}>
+              Создать стартовых пользователей
+            </div>
+            <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14 }}>
+              Укажите пароль, который будет использоваться для входа в стартовые профили.
+            </div>
+            <input
+              type="password"
+              value={starterPassword}
+              onChange={e => setStarterPassword(e.target.value)}
+              placeholder="Введите пароль"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '11px 12px',
+                border: '1.5px solid #E8E8E8',
+                borderRadius: 10,
+                fontSize: 14,
+                marginBottom: 14,
+                boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (creatingStarters) return;
+                  setShowStarterDialog(false);
+                  setStarterPassword('');
+                }}
+                style={{
+                  border: '1px solid #E5E7EB',
+                  background: '#fff',
+                  color: '#374151',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: creatingStarters ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateStarterUsers}
+                disabled={creatingStarters || !starterPassword.trim()}
+                style={{
+                  border: 'none',
+                  background: '#BE185D',
+                  color: '#fff',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: creatingStarters || !starterPassword.trim() ? 'not-allowed' : 'pointer',
+                  opacity: creatingStarters || !starterPassword.trim() ? 0.7 : 1,
+                }}
+              >
+                {creatingStarters ? 'Создаём…' : 'Создать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
