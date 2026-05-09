@@ -124,9 +124,9 @@ for select
 using (
   deleted_at is null
   and (
+    -- Login screen needs profile cards before auth; authenticated users need full user directory.
     auth.role() = 'anon'
-    or public.is_director()
-    or id = auth.uid()::text
+    or auth.uid() is not null
   )
 );
 
