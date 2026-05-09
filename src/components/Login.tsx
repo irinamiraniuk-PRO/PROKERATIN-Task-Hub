@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
-import { FALLBACK_USERS } from '../data/profileSeeds';
 import BrandLogo from './BrandLogo';
 
 const SESSION_STORAGE_KEY = 'prokeratin_session_user_v1';
@@ -353,15 +352,22 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
   const { state, login, createStarterUsers } = useApp();
+  const fallbackUsers = [
+    { id: 'irina', login: 'irina', name: 'Ирина Миранюк', role: 'director', initials: 'ИМ', color: '#BE185D' },
+    { id: 'ulyana', login: 'ulyana', name: 'Ульяна', role: 'employee', initials: 'У', color: '#0891B2' },
+    { id: 'natali', login: 'natali', name: 'Натали', role: 'employee', initials: 'Н', color: '#EA580C' },
+    { id: 'marina', login: 'marina', name: 'Марина', role: 'employee', initials: 'М', color: '#16A34A' },
+  ] as const;
   const localStorageUsers = useMemo(() => readLocalStorageUsers(), []);
   const users = useMemo(() => {
     const usersByLogin = new Map<string, User>();
-    // Fallback profiles define guaranteed display order; loaded profiles override same logins.
-    FALLBACK_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
     localStorageUsers.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
     state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
     return Array.from(usersByLogin.values());
   }, [localStorageUsers, state.users]);
+  const visibleUsers = users && users.length > 0 ? users : fallbackUsers;
+  console.log('Loaded users:', users);
+  console.log('Visible users:', visibleUsers);
   const hasExistingUsers = state.users.length > 0 || localStorageUsers.length > 0;
 
   const [phase, setPhase] = useState<Phase>('select');
@@ -548,7 +554,7 @@ export default function Login() {
                 justifyContent: 'center',
               }}
             >
-              {users.map(user => (
+              {visibleUsers.map(user => (
                 <div key={user.id} className="anim-scale-in">
                   <UserCard
                     user={user}
