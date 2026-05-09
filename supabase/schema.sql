@@ -123,6 +123,11 @@ create policy "profiles_select" on public.profiles
 for select
 using (
   deleted_at is null
+  and (
+    -- Login screen needs profile cards before auth; authenticated users need full user directory.
+    auth.role() = 'anon'
+    or auth.uid() is not null
+  )
 );
 
 drop policy if exists "profiles_insert" on public.profiles;
