@@ -123,11 +123,6 @@ create policy "profiles_select" on public.profiles
 for select
 using (
   deleted_at is null
-  and (
-    auth.role() = 'anon'
-    or public.is_director()
-    or id = auth.uid()::text
-  )
 );
 
 drop policy if exists "profiles_insert" on public.profiles;
