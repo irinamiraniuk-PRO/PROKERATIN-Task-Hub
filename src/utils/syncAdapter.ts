@@ -25,9 +25,12 @@ const POLL_INTERVAL_MS = 2500;
 const MAX_POLL_INTERVAL_MS = 30000;
 const LEGACY_STORAGE_KEY_PATTERNS = ['prokeratin', 'task', 'hub', 'state', 'sync', 'backup'];
 const LEGACY_LOCAL_STORAGE_IGNORED = ['prokeratin_session_user_v1'];
+const SUPABASE_CONNECTION_WARNING = 'Синхронизация недоступна: нет соединения с Supabase';
 
 function isSameSyncStatus(left: SyncStatus, right: SyncStatus): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return left.mode === right.mode
+    && left.supportsCrossDeviceSync === right.supportsCrossDeviceSync
+    && left.warning === right.warning;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -158,7 +161,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
   status: SyncStatus = {
     mode: 'unavailable',
     supportsCrossDeviceSync: false,
-    warning: 'Синхронизация недоступна: нет соединения с Supabase',
+    warning: SUPABASE_CONNECTION_WARNING,
   };
 
   requiresBootstrapBeforeSave = true;
@@ -243,7 +246,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
         this.setStatus({
           mode: 'unavailable',
           supportsCrossDeviceSync: false,
-          warning: 'Синхронизация недоступна: нет соединения с Supabase',
+          warning: SUPABASE_CONNECTION_WARNING,
         });
         pollDelay = Math.min(pollDelay * 2, MAX_POLL_INTERVAL_MS);
       }
