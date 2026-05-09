@@ -1,6 +1,6 @@
 import type { DashboardTodoItem } from '../types';
 import { createDataService, type PersistedStateData } from './dataService';
-import { hasSupabaseConfig } from './supabaseClient';
+import { hasSupabaseConfig, supabaseClient } from './supabaseClient';
 
 export type SyncMode = 'backend' | 'unavailable';
 
@@ -272,7 +272,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
 }
 
 export function createStateSyncAdapter(): StateSyncAdapter {
-  if (hasSupabaseConfig) {
+  if (hasSupabaseConfig && supabaseClient) {
     return new SupabaseSyncAdapter();
   }
   return new MissingSupabaseSyncAdapter();
