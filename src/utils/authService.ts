@@ -6,8 +6,6 @@ import { supabaseClient } from './supabaseClient';
 // Synthetic auth domain for login->email conversion in Supabase Auth.
 // It does not need public DNS resolution; it only must be consistent across sign-in/user creation.
 const AUTH_EMAIL_DOMAIN = 'auth.prokeratin.internal';
-const STARTER_USER_PASSWORD = '1234';
-
 interface ProfileRow {
   id: string;
   login: string;
@@ -115,12 +113,21 @@ export async function ensureProfileForAuthUser(user: SupabaseAuthUser, seed: Pro
   });
 }
 
-export async function ensureStarterProfiles(): Promise<EnsureStarterProfilesResult> {
+export async function ensureStarterProfiles(password: string): Promise<EnsureStarterProfilesResult> {
   if (!supabaseClient) {
     return {
       created: 0,
       existing: PROFILE_SEED_USERS.length,
       users: PROFILE_SEED_USERS,
+    };
+  }
+
+  const normalizedPassword = password.trim();
+  if (!normalizedPassword) {
+    return {
+      created: 0,
+      existing: 0,
+      users: [],
     };
   }
 
@@ -144,7 +151,7 @@ export async function ensureStarterProfiles(): Promise<EnsureStarterProfilesResu
     const email = toAuthEmail(login);
     const signUpResult = await supabaseClient.auth.signUp({
       email,
-      password: STARTER_USER_PASSWORD,
+      password: normalizedPassword,
     });
     let authUser: SupabaseAuthUser | null;
     if (!signUpResult.error) {
@@ -153,7 +160,7 @@ export async function ensureStarterProfiles(): Promise<EnsureStarterProfilesResu
       const message = signUpResult.error.message.toLowerCase();
       const alreadyExists = message.includes('already registered') || message.includes('already exists');
       if (!alreadyExists) continue;
-      const signInResult = await signInWithLogin(login, STARTER_USER_PASSWORD);
+      const signInResult = await signInWithLogin(login, normalizedPassword);
       if (!signInResult.ok || !signInResult.user) continue;
       authUser = signInResult.user;
     }
@@ -161,8 +168,8 @@ export async function ensureStarterProfiles(): Promise<EnsureStarterProfilesResu
     if (!authUser) continue;
     await ensureProfileForAuthUser(authUser, seed);
     created += 1;
-    await signOutAuth();
   }
+  await signOutAuth();
 
   const users = await fetchProfiles();
   return {

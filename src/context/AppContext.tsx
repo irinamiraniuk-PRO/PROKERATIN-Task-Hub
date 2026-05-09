@@ -454,7 +454,7 @@ function saveState(state: AppState) {
 interface AppContextValue {
   state: AppState;
   login: (login: string, password: string, profileHint?: Pick<User, 'name' | 'role' | 'color'>) => Promise<boolean>;
-  createStarterUsers: () => Promise<number>;
+  createStarterUsers: (password: string) => Promise<number>;
   logout: () => Promise<void>;
   createTask: (data: {
     title: string; description: string; assignedTo: string;
@@ -640,7 +640,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const result = await signInWithLogin(loginVal, password);
     if (!result.ok || !result.user) {
       if (!fallbackUser || !password.trim()) return false;
-      if (hasSupabaseConfig && state.users.length > 0) return false;
+      if (hasSupabaseConfig) {
+        if (state.users.length > 0) return false;
+        const created = await createStarterUsers(password);
+        if (created <= 0) return false;
+        const retry = await signInWithLogin(loginVal, password);
+        if (!retry.ok || !retry.user) return false;
+        await ensureProfileForAuthUser(retry.user, {
+          login: normalizedLogin,
+          name: fallbackUser.name,
+          role: fallbackUser.role,
+          color: fallbackUser.color,
+        });
+        dispatch({ type: 'UPSERT_USERS', users: [{ ...fallbackUser, id: retry.user.id }] });
+        dispatch({ type: 'LOGIN', user: { ...fallbackUser, id: retry.user.id } });
+        return true;
+      }
       dispatch({ type: 'UPSERT_USERS', users: [fallbackUser] });
       dispatch({ type: 'LOGIN', user: fallbackUser });
       return true;
@@ -677,8 +692,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  async function createStarterUsers(): Promise<number> {
-    const result = await ensureStarterProfiles();
+  async function createStarterUsers(password: string): Promise<number> {
+    const result = await ensureStarterProfiles(password);
     const users = result.users.length > 0 ? result.users : PROFILE_SEED_USERS;
     dispatch({ type: 'UPSERT_USERS', users });
     return result.created;
