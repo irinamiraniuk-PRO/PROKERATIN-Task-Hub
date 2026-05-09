@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
 import BrandLogo from './BrandLogo';
-import { FALLBACK_USERS } from '../data/profileSeeds';
+import { FALLBACK_USERS, PROFILE_SEEDS_BY_LOGIN } from '../data/profileSeeds';
 
 const SESSION_STORAGE_KEY = 'prokeratin_session_user_v1';
 
@@ -359,7 +359,8 @@ export default function Login() {
     const byLogin = new Map<string, User>();
     const upsert = (user: User) => {
       const loginKey = (user.login || user.id || '').trim().toLowerCase();
-      if (!loginKey) return;
+      // Only show the 4 official profiles; ignore any extra users from DB or localStorage
+      if (!loginKey || !PROFILE_SEEDS_BY_LOGIN[loginKey]) return;
       const normalized: User = {
         ...user,
         id: user.id?.trim() ? user.id : loginKey,
