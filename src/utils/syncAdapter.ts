@@ -26,6 +26,10 @@ const MAX_POLL_INTERVAL_MS = 30000;
 const LEGACY_STORAGE_KEY_PATTERNS = ['prokeratin', 'task', 'hub', 'state', 'sync', 'backup'];
 const LEGACY_LOCAL_STORAGE_IGNORED = ['prokeratin_session_user_v1'];
 
+function isSameSyncStatus(left: SyncStatus, right: SyncStatus): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -162,18 +166,12 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
   private bootstrapDone = false;
   private migrationAttempted = false;
   private dataService = createDataService();
-  private onStatusChange?: (status: SyncStatus) => void;
+  private statusListeners = new Set<(status: SyncStatus) => void>();
 
   private setStatus(nextStatus: SyncStatus) {
-    if (
-      this.status.mode === nextStatus.mode
-      && this.status.supportsCrossDeviceSync === nextStatus.supportsCrossDeviceSync
-      && this.status.warning === nextStatus.warning
-    ) {
-      return;
-    }
+    if (isSameSyncStatus(this.status, nextStatus)) return;
     this.status = nextStatus;
-    this.onStatusChange?.(this.status);
+    this.statusListeners.forEach(listener => listener(this.status));
   }
 
   private emitBootstrapDone(onPayload: (payload: string | null) => void) {
@@ -207,8 +205,10 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
     let disposed = false;
     let timerId: number | null = null;
     let pollDelay = POLL_INTERVAL_MS;
-    this.onStatusChange = onStatusChange;
-    this.onStatusChange?.(this.status);
+    if (onStatusChange) {
+      this.statusListeners.add(onStatusChange);
+      onStatusChange(this.status);
+    }
 
     const poll = async () => {
       try {
@@ -260,9 +260,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
 
     return () => {
       disposed = true;
-      if (this.onStatusChange === onStatusChange) {
-        this.onStatusChange = undefined;
-      }
+      if (onStatusChange) this.statusListeners.delete(onStatusChange);
       if (timerId !== null) {
         window.clearTimeout(timerId);
       }
