@@ -4,6 +4,8 @@ import type { User } from '../types';
 import { FALLBACK_USERS } from '../data/profileSeeds';
 import BrandLogo from './BrandLogo';
 
+const SESSION_STORAGE_KEY = 'prokeratin_session_user_v1';
+
 /* ── helpers ─────────────────────────────────────── */
 function initials(name: string) {
   return name
@@ -45,7 +47,7 @@ function readLocalStorageUsers(): User[] {
   try {
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
-      if (!key || key === 'prokeratin_session_user_v1') continue;
+      if (!key || key === SESSION_STORAGE_KEY) continue;
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       let parsed: unknown;
