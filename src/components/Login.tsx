@@ -45,8 +45,8 @@ function readLocalStorageUsers(): User[] {
   if (typeof window === 'undefined') return [];
   const usersByLogin = new Map<string, User>();
   try {
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const key = localStorage.key(i);
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
       if (!key || key === SESSION_STORAGE_KEY) continue;
       const raw = localStorage.getItem(key);
       if (!raw) continue;
