@@ -353,21 +353,12 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 export default function Login() {
   const { state, login, createStarterUsers } = useApp();
   const fallbackUsers = [
-    { id: 'irina', login: 'irina', name: 'Ирина Миранюк', role: 'director', initials: 'ИМ', color: '#BE185D' },
-    { id: 'ulyana', login: 'ulyana', name: 'Ульяна', role: 'employee', initials: 'У', color: '#0891B2' },
-    { id: 'natali', login: 'natali', name: 'Натали', role: 'employee', initials: 'Н', color: '#EA580C' },
-    { id: 'marina', login: 'marina', name: 'Марина', role: 'employee', initials: 'М', color: '#16A34A' },
+    { id: 'irina', name: 'Ирина Миранюк', role: 'director', initials: 'ИМ' },
+    { id: 'ulyana', name: 'Ульяна', role: 'employee', initials: 'У' },
+    { id: 'natali', name: 'Натали', role: 'employee', initials: 'Н' },
+    { id: 'marina', name: 'Марина', role: 'employee', initials: 'М' },
   ] as const;
   const localStorageUsers = useMemo(() => readLocalStorageUsers(), []);
-  const users = useMemo(() => {
-    const usersByLogin = new Map<string, User>();
-    localStorageUsers.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
-    state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
-    return Array.from(usersByLogin.values());
-  }, [localStorageUsers, state.users]);
-  const visibleUsers = users && users.length > 0 ? users : fallbackUsers;
-  console.log('Loaded users:', users);
-  console.log('Visible users:', visibleUsers);
   const hasExistingUsers = state.users.length > 0 || localStorageUsers.length > 0;
 
   const [phase, setPhase] = useState<Phase>('select');
@@ -554,15 +545,23 @@ export default function Login() {
                 justifyContent: 'center',
               }}
             >
-              {visibleUsers.map(user => (
+              {fallbackUsers.map(user => {
+                const loginUser: User = {
+                  id: user.id,
+                  login: user.id,
+                  name: user.name,
+                  role: user.role,
+                };
+                return (
                 <div key={user.id} className="anim-scale-in">
                   <UserCard
-                    user={user}
+                    user={loginUser}
                     selected={false}
-                    onClick={() => handleSelectUser(user)}
+                    onClick={() => handleSelectUser(loginUser)}
                   />
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div style={{ textAlign: 'center', marginTop: 36, fontSize: 11, color: '#D8D5D1' }}>
