@@ -142,12 +142,11 @@ export async function ensureStarterProfiles(): Promise<EnsureStarterProfilesResu
     seenLogins.add(login);
 
     const email = toAuthEmail(login);
-    let authUser: SupabaseAuthUser | null = null;
-
     const signUpResult = await supabaseClient.auth.signUp({
       email,
       password: STARTER_USER_PASSWORD,
     });
+    let authUser: SupabaseAuthUser | null;
     if (!signUpResult.error) {
       authUser = signUpResult.data.user ?? null;
     } else {
