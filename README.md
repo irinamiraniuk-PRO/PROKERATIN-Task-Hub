@@ -5,11 +5,14 @@
 1. Copy `.env.example` to `.env` and fill:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_PUBLISHABLE_KEY` (or `VITE_SUPABASE_ANON_KEY` for backward compatibility)
-2. In Supabase Auth create users (email format: `<login>@auth.prokeratin.internal`) with passwords.
-3. Run SQL from `supabase/schema.sql` in your Supabase project (tables, roles, RLS, storage policies).
-4. Ensure buckets `avatars` and `attachments` exist (SQL script creates them if missing).
-5. Start the app. GitHub Pages remains UI only; all working data is stored in Supabase.
-6. Without these variables the UI will show:
+2. For GitHub Pages deploy add repository secrets:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` (recommended) or `VITE_SUPABASE_ANON_KEY`
+3. In Supabase Auth create users (email format: `<login>@auth.prokeratin.internal`) with passwords.
+4. Run SQL from `supabase/schema.sql` in your Supabase project (tables, roles, RLS, storage policies).
+5. Ensure buckets `avatars` and `attachments` exist (SQL script creates them if missing).
+6. Start the app. GitHub Pages remains UI only; all working data is stored in Supabase.
+7. Without these variables the UI will show:
    `Синхронизация недоступна: не подключена база данных Supabase`.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

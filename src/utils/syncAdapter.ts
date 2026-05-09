@@ -15,13 +15,23 @@ export interface StateSyncAdapter {
   requiresBootstrapBeforeSave: boolean;
   load: () => string | null;
   save: (payload: string) => void;
-  subscribe: (onPayload: (payload: string | null) => void) => () => void;
+  subscribe: (
+    onPayload: (payload: string | null) => void,
+    onStatusChange?: (status: SyncStatus) => void,
+  ) => () => void;
 }
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_POLL_INTERVAL_MS = 30000;
 const LEGACY_STORAGE_KEY_PATTERNS = ['prokeratin', 'task', 'hub', 'state', 'sync', 'backup'];
 const LEGACY_LOCAL_STORAGE_IGNORED = ['prokeratin_session_user_v1'];
+const SUPABASE_CONNECTION_WARNING = 'Синхронизация недоступна: нет соединения с Supabase';
+
+function isSameSyncStatus(left: SyncStatus, right: SyncStatus): boolean {
+  return left.mode === right.mode
+    && left.supportsCrossDeviceSync === right.supportsCrossDeviceSync
+    && left.warning === right.warning;
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -137,7 +147,11 @@ class MissingSupabaseSyncAdapter implements StateSyncAdapter {
     void payload;
   }
 
-  subscribe(onPayload: (payload: string | null) => void): () => void {
+  subscribe(
+    onPayload: (payload: string | null) => void,
+    onStatusChange?: (status: SyncStatus) => void,
+  ): () => void {
+    onStatusChange?.(this.status);
     onPayload(null);
     return () => {};
   }
@@ -145,9 +159,9 @@ class MissingSupabaseSyncAdapter implements StateSyncAdapter {
 
 class SupabaseSyncAdapter implements StateSyncAdapter {
   status: SyncStatus = {
-    mode: 'backend',
-    supportsCrossDeviceSync: true,
-    warning: '',
+    mode: 'unavailable',
+    supportsCrossDeviceSync: false,
+    warning: SUPABASE_CONNECTION_WARNING,
   };
 
   requiresBootstrapBeforeSave = true;
@@ -155,6 +169,13 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
   private bootstrapDone = false;
   private migrationAttempted = false;
   private dataService = createDataService();
+  private statusListeners = new Set<(status: SyncStatus) => void>();
+
+  private setStatus(nextStatus: SyncStatus) {
+    if (isSameSyncStatus(this.status, nextStatus)) return;
+    this.status = nextStatus;
+    this.statusListeners.forEach(listener => listener(this.status));
+  }
 
   private emitBootstrapDone(onPayload: (payload: string | null) => void) {
     if (this.bootstrapDone) return;
@@ -180,14 +201,26 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
     });
   }
 
-  subscribe(onPayload: (payload: string | null) => void): () => void {
+  subscribe(
+    onPayload: (payload: string | null) => void,
+    onStatusChange?: (status: SyncStatus) => void,
+  ): () => void {
     let disposed = false;
     let timerId: number | null = null;
     let pollDelay = POLL_INTERVAL_MS;
+    if (onStatusChange) {
+      this.statusListeners.add(onStatusChange);
+      onStatusChange(this.status);
+    }
 
     const poll = async () => {
       try {
         const data = await this.dataService.fetchStateData();
+        this.setStatus({
+          mode: 'backend',
+          supportsCrossDeviceSync: true,
+          warning: '',
+        });
         pollDelay = POLL_INTERVAL_MS;
 
         if (!data) {
@@ -210,6 +243,11 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
           this.emitBootstrapDone(onPayload);
         }
       } catch {
+        this.setStatus({
+          mode: 'unavailable',
+          supportsCrossDeviceSync: false,
+          warning: SUPABASE_CONNECTION_WARNING,
+        });
         pollDelay = Math.min(pollDelay * 2, MAX_POLL_INTERVAL_MS);
       }
     };
@@ -225,6 +263,7 @@ class SupabaseSyncAdapter implements StateSyncAdapter {
 
     return () => {
       disposed = true;
+      if (onStatusChange) this.statusListeners.delete(onStatusChange);
       if (timerId !== null) {
         window.clearTimeout(timerId);
       }
