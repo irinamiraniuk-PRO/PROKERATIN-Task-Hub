@@ -541,7 +541,6 @@ export default function Login() {
             )}
 
             <div
-              className="stagger"
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
