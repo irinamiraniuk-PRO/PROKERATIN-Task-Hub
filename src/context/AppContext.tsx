@@ -530,6 +530,7 @@ function showBrowserNotification(title: string, body: string) {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => stateSyncAdapter.status);
   const [syncBootstrapReady, setSyncBootstrapReady] = useState(!stateSyncAdapter.requiresBootstrapBeforeSave);
   const prevUnreadCountRef = useRef<number>(0);
   const notifInitializedRef = useRef(false);
@@ -545,29 +546,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state, syncBootstrapReady]);
 
   useEffect(() => {
-    return stateSyncAdapter.subscribe((payload) => {
-      const markReady = () => {
-        if (syncReadyRef.current) return;
-        syncReadyRef.current = true;
-        setSyncBootstrapReady(true);
-      };
-      if (!payload) {
-        markReady();
-        return;
-      }
-      try {
-        const parsed = JSON.parse(payload);
-        const nextState = toAppState(normalizePersistedInput(parsed), sessionUserId);
-        const nextFingerprint = getStateFingerprint(nextState);
-        if (nextFingerprint === lastStateFingerprintRef.current) {
+    return stateSyncAdapter.subscribe(
+      (payload) => {
+        const markReady = () => {
+          if (syncReadyRef.current) return;
+          syncReadyRef.current = true;
+          setSyncBootstrapReady(true);
+        };
+        if (!payload) {
           markReady();
           return;
         }
-        lastStateFingerprintRef.current = nextFingerprint;
-        dispatch({ type: 'HYDRATE_STATE', state: nextState });
-      } catch { /* ignore */ }
-      markReady();
-    });
+        try {
+          const parsed = JSON.parse(payload);
+          const nextState = toAppState(normalizePersistedInput(parsed), sessionUserId);
+          const nextFingerprint = getStateFingerprint(nextState);
+          if (nextFingerprint === lastStateFingerprintRef.current) {
+            markReady();
+            return;
+          }
+          lastStateFingerprintRef.current = nextFingerprint;
+          dispatch({ type: 'HYDRATE_STATE', state: nextState });
+        } catch { /* ignore */ }
+        markReady();
+      },
+      (nextStatus) => {
+        setSyncStatus(nextStatus);
+      },
+    );
   }, [sessionUserId]);
 
   useEffect(() => {
@@ -1038,7 +1044,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDashboardTodos,
       addUserKBArticle, updateUserKBArticle, deleteUserKBArticle,
       exportState, importState,
-      syncStatus: stateSyncAdapter.status,
+      syncStatus,
     }}>
       {children}
     </AppContext.Provider>
