@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
 import { PROFILE_SEED_USERS } from '../data/profileSeeds';
@@ -300,12 +300,14 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
   const { state, login, createStarterUsers } = useApp();
-  const usersByLogin = new Map<string, User>();
-  // Seed profiles define guaranteed display order; loaded profiles override same logins.
-  PROFILE_SEED_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
-  state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
-  const users = Array.from(usersByLogin.values());
-  const hasRemoteUsers = state.users.length > 0;
+  const users = useMemo(() => {
+    const usersByLogin = new Map<string, User>();
+    // Seed profiles define guaranteed display order; loaded profiles override same logins.
+    PROFILE_SEED_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+    state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+    return Array.from(usersByLogin.values());
+  }, [state.users]);
+  const hasExistingUsers = state.users.length > 0;
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -444,7 +446,7 @@ export default function Login() {
               <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
             </div>
 
-            {!hasRemoteUsers && (
+            {!hasExistingUsers && (
               <div style={{
                 margin: '0 auto 20px',
                 maxWidth: 540,

@@ -157,8 +157,11 @@ export async function ensureStarterProfiles(password: string): Promise<EnsureSta
     if (!signUpResult.error) {
       authUser = signUpResult.data.user ?? null;
     } else {
+      const errorCode = (signUpResult.error.code ?? '').toLowerCase();
+      const alreadyExistsByCode = errorCode === 'user_already_exists' || errorCode === 'email_exists';
       const message = signUpResult.error.message.toLowerCase();
-      const alreadyExists = message.includes('already registered') || message.includes('already exists');
+      const alreadyExistsByMessage = message.includes('already registered') || message.includes('already exists');
+      const alreadyExists = alreadyExistsByCode || alreadyExistsByMessage;
       if (!alreadyExists) continue;
       const signInResult = await signInWithLogin(login, normalizedPassword);
       if (!signInResult.ok || !signInResult.user) continue;
