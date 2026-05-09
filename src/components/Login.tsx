@@ -299,8 +299,12 @@ function UserCard({ user, selected, onClick }: UserCardProps) {
 type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
-  const { state, login } = useApp();
-  const users = state.users.length > 0 ? state.users : PROFILE_SEED_USERS;
+  const { state, login, createStarterUsers } = useApp();
+  const usersByLogin = new Map<string, User>();
+  PROFILE_SEED_USERS.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+  state.users.forEach((user) => usersByLogin.set(user.login.toLowerCase(), user));
+  const users = Array.from(usersByLogin.values());
+  const hasRemoteUsers = state.users.length > 0;
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -308,6 +312,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [creatingStarters, setCreatingStarters] = useState(false);
+  const [starterMessage, setStarterMessage] = useState('');
   const pendingCredentialsRef = useRef<{
     login: string;
     password: string;
@@ -352,6 +358,19 @@ export default function Login() {
     setSelectedUser(null);
     setError('');
     setPassword('');
+  }
+
+  async function handleCreateStarterUsers() {
+    setCreatingStarters(true);
+    setStarterMessage('');
+    try {
+      const created = await createStarterUsers();
+      setStarterMessage(created > 0 ? 'Стартовые пользователи созданы.' : 'Стартовые пользователи уже доступны.');
+    } catch {
+      setStarterMessage('Не удалось создать стартовых пользователей. Используйте fallback-профили.');
+    } finally {
+      setCreatingStarters(false);
+    }
   }
 
   function handleLogin(e: React.FormEvent) {
@@ -415,6 +434,45 @@ export default function Login() {
               <div style={{ fontSize: 17, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.3px' }}>Выберите свой профиль</div>
               <div style={{ fontSize: 13, color: '#ADADAD', marginTop: 5 }}>Нажмите на карточку, чтобы войти</div>
             </div>
+
+            {!hasRemoteUsers && (
+              <div style={{
+                margin: '0 auto 20px',
+                maxWidth: 540,
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: 12,
+                padding: '14px 16px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 13, color: '#92400E', marginBottom: 10 }}>
+                  Пользователи не найдены. Создать стартовых пользователей?
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleCreateStarterUsers()}
+                  disabled={creatingStarters}
+                  style={{
+                    border: 'none',
+                    borderRadius: 10,
+                    background: '#BE185D',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    padding: '10px 14px',
+                    cursor: creatingStarters ? 'not-allowed' : 'pointer',
+                    opacity: creatingStarters ? 0.7 : 1,
+                  }}
+                >
+                  {creatingStarters ? 'Создаём…' : 'Создать стартовых пользователей'}
+                </button>
+                {starterMessage && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#78350F' }}>
+                    {starterMessage}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div
               className="stagger"

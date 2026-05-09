@@ -6,9 +6,10 @@ import type {
 } from '../types';
 import { parseMentions } from '../utils/mentions';
 import { createStateSyncAdapter, type SyncStatus } from '../utils/syncAdapter';
-import { ensureProfileForAuthUser, getSessionUser, signInWithLogin, signOutAuth, subscribeAuthState, updateAuthPassword } from '../utils/authService';
+import { ensureProfileForAuthUser, ensureStarterProfiles, getSessionUser, signInWithLogin, signOutAuth, subscribeAuthState, updateAuthPassword } from '../utils/authService';
 import { uploadAttachmentDataUrl, uploadAvatarDataUrl } from '../utils/storageService';
-import { PROFILE_SEEDS_BY_LOGIN } from '../data/profileSeeds';
+import { PROFILE_SEEDS_BY_LOGIN, PROFILE_SEED_USERS } from '../data/profileSeeds';
+import { hasSupabaseConfig } from '../utils/supabaseClient';
 
 const STATE_EXPORT_VERSION = 1;
 const stateSyncAdapter = createStateSyncAdapter();
@@ -22,6 +23,7 @@ interface PersistedStatePayload {
 
 type Action =
   | { type: 'HYDRATE_STATE'; state: AppState }
+  | { type: 'UPSERT_USERS'; users: User[] }
   | { type: 'LOGIN'; user: User }
   | { type: 'LOGOUT' }
   | { type: 'CREATE_TASK'; task: Task; notifications: Notification[] }
@@ -124,6 +126,15 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE_STATE':
       return action.state;
+    case 'UPSERT_USERS': {
+      if (action.users.length === 0) return state;
+      const byId = new Map(state.users.map(user => [user.id, user] as const));
+      action.users.forEach((user) => {
+        const current = byId.get(user.id);
+        byId.set(user.id, current ? { ...current, ...user } : user);
+      });
+      return { ...state, users: Array.from(byId.values()) };
+    }
     case 'LOGIN':
       return { ...state, currentUser: action.user };
     case 'LOGOUT':
@@ -443,6 +454,7 @@ function saveState(state: AppState) {
 interface AppContextValue {
   state: AppState;
   login: (login: string, password: string, profileHint?: Pick<User, 'name' | 'role' | 'color'>) => Promise<boolean>;
+  createStarterUsers: () => Promise<number>;
   logout: () => Promise<void>;
   createTask: (data: {
     title: string; description: string; assignedTo: string;
@@ -613,10 +625,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.notifications, state.currentUser]);
 
   async function login(loginVal: string, password: string, profileHint?: Pick<User, 'name' | 'role' | 'color'>): Promise<boolean> {
-    const result = await signInWithLogin(loginVal, password);
-    if (!result.ok || !result.user) return false;
+    const normalizedLogin = loginVal.trim().toLowerCase();
+    const fallbackSeed = profileHint ?? PROFILE_SEEDS_BY_LOGIN[normalizedLogin];
+    const fallbackUser: User | null = fallbackSeed
+      ? {
+          id: normalizedLogin,
+          login: normalizedLogin,
+          name: fallbackSeed.name,
+          role: fallbackSeed.role,
+          color: fallbackSeed.color,
+        }
+      : null;
 
-    const seed = profileHint ?? PROFILE_SEEDS_BY_LOGIN[loginVal.trim().toLowerCase()] ?? {
+    const result = await signInWithLogin(loginVal, password);
+    if (!result.ok || !result.user) {
+      if (!fallbackUser || !password.trim()) return false;
+      if (hasSupabaseConfig && state.users.length > 0) return false;
+      dispatch({ type: 'UPSERT_USERS', users: [fallbackUser] });
+      dispatch({ type: 'LOGIN', user: fallbackUser });
+      return true;
+    }
+
+    const seed = fallbackSeed ?? {
       name: loginVal,
       role: 'employee' as User['role'],
       color: '#BE185D',
@@ -645,6 +675,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     }
     return true;
+  }
+
+  async function createStarterUsers(): Promise<number> {
+    const result = await ensureStarterProfiles();
+    const users = result.users.length > 0 ? result.users : PROFILE_SEED_USERS;
+    dispatch({ type: 'UPSERT_USERS', users });
+    return result.created;
   }
 
   async function logout() {
@@ -973,7 +1010,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      state, login, logout, createTask, updateStatus, transferTask,
+      state, login, createStarterUsers, logout, createTask, updateStatus, transferTask,
       sendToDirectorReview, addComment, directorAction,
       setPlannedDate, moveTaskToDay, updateDeadline, toggleChecklistItem, addChecklistItem,
       updateChecklistItemAssignee, updateTaskTags, kanbanMove,
