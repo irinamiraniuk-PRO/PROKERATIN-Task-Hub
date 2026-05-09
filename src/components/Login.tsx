@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/useApp';
 import type { User } from '../types';
 import BrandLogo from './BrandLogo';
+import { FALLBACK_USERS } from '../data/profileSeeds';
 
 const SESSION_STORAGE_KEY = 'prokeratin_session_user_v1';
 
@@ -352,14 +353,26 @@ type Phase = 'select' | 'password' | 'welcome-in' | 'welcome-out';
 
 export default function Login() {
   const { state, login, createStarterUsers } = useApp();
-  const fallbackUsers = [
-    { id: 'irina', name: 'Ирина Миранюк', role: 'director', initials: 'ИМ' },
-    { id: 'ulyana', name: 'Ульяна', role: 'employee', initials: 'У' },
-    { id: 'natali', name: 'Натали', role: 'employee', initials: 'Н' },
-    { id: 'marina', name: 'Марина', role: 'employee', initials: 'М' },
-  ] as const;
   const localStorageUsers = useMemo(() => readLocalStorageUsers(), []);
   const hasExistingUsers = state.users.length > 0 || localStorageUsers.length > 0;
+  const loginUsers = useMemo(() => {
+    const byLogin = new Map<string, User>();
+    const upsert = (user: User) => {
+      const loginKey = (user.login || user.id || '').trim().toLowerCase();
+      if (!loginKey) return;
+      const normalized: User = {
+        ...user,
+        id: user.id?.trim() ? user.id : loginKey,
+        login: loginKey,
+      };
+      const existing = byLogin.get(loginKey);
+      byLogin.set(loginKey, existing ? { ...existing, ...normalized } : normalized);
+    };
+    FALLBACK_USERS.forEach(upsert);
+    localStorageUsers.forEach(upsert);
+    state.users.forEach(upsert);
+    return Array.from(byLogin.values());
+  }, [localStorageUsers, state.users]);
 
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -545,15 +558,9 @@ export default function Login() {
                 justifyContent: 'center',
               }}
             >
-              {fallbackUsers.map(user => {
-                const loginUser: User = {
-                  id: user.id,
-                  login: user.id,
-                  name: user.name,
-                  role: user.role,
-                };
+              {loginUsers.map(loginUser => {
                 return (
-                <div key={user.id} className="anim-scale-in">
+                <div key={loginUser.id} className="anim-scale-in">
                   <UserCard
                     user={loginUser}
                     selected={false}
